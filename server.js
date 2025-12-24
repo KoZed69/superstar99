@@ -31,19 +31,26 @@ function toMalay(decimal) {
 
 app.get('/odds', async (req, res) => {
     try {
-        console.log("⏳ Fetching 7-Day & In-Play Data...");
+        console.log("⏳ Fetching 7-Day & Live Data...");
+        
+        // ၁။ Live (In-Play) ပွဲစဉ်များ အရင်ခေါ်ယူခြင်း
         const inplayRes = await axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } });
         
+        // ၂။ နောက်လာမည့် ၇ ရက်စာအတွက် loop ပတ်၍ ခေါ်ယူခြင်း
         const upcomingPromises = [];
         for (let i = 0; i < 7; i++) {
-            const date = new Date(); date.setDate(date.getDate() + i);
-            const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
-            upcomingPromises.push(axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1, day: dateStr } }).catch(() => ({ data: { results: [] } })));
+            const date = new Date();
+            date.setDate(date.getDate() + i);
+            const dateStr = date.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD format
+            upcomingPromises.push(
+                axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1, day: dateStr } })
+                .catch(() => ({ data: { results: [] } }))
+            );
         }
 
         const upcomingResults = await Promise.all(upcomingPromises);
         let allRaw = inplayRes.data.results || [];
-        upcomingResults.forEach(r => { if(r.data.results) allRaw = [...allRaw, ...r.data.results]; });
+        upcomingResults.forEach(r => { if(r.data && r.data.results) allRaw = [...allRaw, ...r.data.results]; });
 
         const processed = allRaw
             .filter(m => m.league && !m.league.name.toLowerCase().includes("esoccer"))
@@ -69,15 +76,9 @@ app.get('/odds', async (req, res) => {
                     }
                 };
             });
+        console.log(`✅ Success: Found ${processed.length} matches.`);
         res.json(processed);
     } catch (e) { res.status(200).json([]); }
-});
-
-app.post('/auth/login', async (req, res) => {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Invalid Login" });
-    res.json({ success: true, user });
 });
 
 app.post('/user/sync', async (req, res) => {
@@ -88,7 +89,7 @@ app.post('/user/sync', async (req, res) => {
 app.post('/user/bet', async (req, res) => {
     const { username, stake, ticket } = req.body;
     const user = await User.findOne({ username });
-    if(user.balance < stake) return res.status(400).json({ error: "Low Funds" });
+    if(!user || user.balance < stake) return res.status(400).json({ error: "Low Funds" });
     user.balance -= stake;
     user.history.unshift(ticket);
     await user.save();
