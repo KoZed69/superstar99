@@ -10,11 +10,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
+// --- CONFIG ---
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kozed:Bwargyi69@cluster0.s5oybom.mongodb.net/gl99_db";
 const TOKEN = process.env.BETS_API_TOKEN || "241806-4Tr2NNdfhQxz9X";
 const BETS_API_URL = "https://api.b365api.com/v1";
 
-mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Polished DB Connected"));
+mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Database Connected"));
 
 const User = mongoose.model('User', new mongoose.Schema({
     username: { type: String, unique: true },
@@ -29,14 +30,12 @@ function toMalay(decimal) {
     return d <= 2.0 ? (d - 1).toFixed(2) : (-1 / (d - 1)).toFixed(2);
 }
 
-// server.js ၏ /odds route ကို ဤကုဒ်ဖြင့် အစားထိုးပါ
+// Polished /odds route with robust 7-day fetch logic
 app.get('/odds', async (req, res) => {
     try {
-        console.log("⏳ Fetching 7-Day & Live Data...");
-        // Live ဒေတာ ဆွဲယူခြင်း
+        console.log("⏳ Syncing with BetsAPI (Live + 7 Days)...");
         const inplayRes = await axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } });
         
-        // ၇ ရက်စာ Upcoming ဒေတာ ဆွဲယူခြင်း
         const upcomingPromises = [];
         for (let i = 0; i < 7; i++) {
             const date = new Date();
@@ -76,10 +75,10 @@ app.get('/odds', async (req, res) => {
     } catch (e) { res.status(200).json([]); }
 });
 
-// မူလ User & Auth Routes များကို မထိခိုက်စေဘဲ ထိန်းသိမ်းထားပါသည်
-app.post('/auth/login', async (req, res) => { /*...*/ });
-app.post('/user/sync', async (req, res) => { /*...*/ });
-app.post('/user/bet', async (req, res) => { /*...*/ });
+// မူလ User & Auth Routes
+app.post('/auth/login', async (req, res) => { /* logic stays same */ });
+app.post('/user/sync', async (req, res) => { /* logic stays same */ });
+app.post('/user/bet', async (req, res) => { /* logic stays same */ });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Polished GL99 Real Soccer Live on Port ${PORT}`));
+const PORT = process.env.PORT || 10000; // Cloud Support
+app.listen(PORT, () => console.log(`🚀 Perfect Server on Port ${PORT}`));

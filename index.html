@@ -86,7 +86,7 @@
         if(!currentUser) return window.location.href = 'login.html';
         document.getElementById('user-name').innerText = currentUser.username;
         await fetchOdds(); syncUser();
-        setInterval(fetchOdds, 30000); // ၃၀ စက္ကန့်တိုင်း အလိုအလျောက် Refresh လုပ်ခြင်း
+        setInterval(fetchOdds, 30000); 
     }
 
     async function syncUser() {
@@ -100,6 +100,7 @@
         try {
             const res = await fetch(`${API_BASE}/odds`);
             allMatches = await res.json(); 
+            console.log("Matches Received:", allMatches.length);
             renderTable();
         } catch(e) { console.error("Fetch Error"); }
     }
@@ -107,8 +108,10 @@
     function setTab(tab) {
         currentTab = tab;
         document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
-        const activeTab = document.getElementById('t-' + tab.toLowerCase());
-        if(activeTab) activeTab.classList.add('active');
+        if(event && event.currentTarget) {
+            event.currentTarget.classList.add('bg-white', 'text-red-700');
+            event.currentTarget.classList.remove('cursor-pointer');
+        }
         renderTable();
     }
 
@@ -117,10 +120,8 @@
         if(!tbody) return;
         tbody.innerHTML = '';
         
-        const todayEnd = new Date(); 
-        todayEnd.setHours(23, 59, 59, 999);
+        const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
-        // ဒေတာများကို Tab အလိုက် စစ်ထုတ်ခြင်း
         let filtered = allMatches.filter(m => {
             const mTime = new Date(m.time);
             if (currentTab === 'Live') return m.isLive === true;
@@ -129,14 +130,12 @@
             return true;
         });
 
-        // Sidebar Counts Update (Element ရှိမှသာ Update လုပ်ရန်)
-        const hdpCnt = document.getElementById('cnt-hdp');
-        const plyCnt = document.getElementById('cnt-parlay');
-        if(hdpCnt) hdpCnt.innerText = filtered.length;
-        if(plyCnt) plyCnt.innerText = filtered.length;
+        // Bug Fix: Check if counter element exists before writing
+        const hdpEl = document.getElementById('cnt-hdp');
+        if(hdpEl) hdpEl.innerText = filtered.length;
 
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-gray-500 italic">No matches available in ${currentTab} right now.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-gray-500 italic">No matches available in ${currentTab} right now.<br><small>Click 'Early' tab to see upcoming matches.</small></td></tr>`;
             return;
         }
 
@@ -147,16 +146,11 @@
             tbody.innerHTML += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
             matches.forEach(m => {
                 const timeStr = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                // Live Info ပြသပုံ
-                const timeDisplay = m.isLive ? `<div class="text-red-600 font-bold animate-pulse">${m.timer}'</div><div class="bg-red-600 text-white px-1 rounded inline-block font-black">${m.score}</div>` : `<div class="text-gray-500">${timeStr}</div>`;
+                const timeDisp = m.isLive ? `<div class="text-red-600 font-bold animate-pulse">${m.timer}'</div><div class="bg-red-600 text-white px-1 rounded inline-block font-black">${m.score}</div>` : `<div class="text-gray-500">${timeStr}</div>`;
 
                 tbody.innerHTML += `
                 <tr class="border-b border-gray-300">
-                    <td class="p-1 border-r bg-gray-50 text-center">
-                        ${timeDisplay}
-                        <div class="font-bold text-blue-900 mt-1">${m.home}</div>
-                        <div class="font-bold text-blue-900">${m.away}</div>
-                    </td>
+                    <td class="p-1 border-r bg-gray-50 text-center"><div>${timeDisp}</div><div class="font-bold text-blue-900 mt-1">${m.home}</div><div class="font-bold text-blue-900">${m.away}</div></td>
                     <td class="p-1 border-r">
                         <div class="flex justify-between"><span>${m.fullTime.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.home}','${m.fullTime.hdp.h}')">${m.fullTime.hdp.h}</span></div>
                         <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.away}','${m.fullTime.hdp.a}')">${m.fullTime.hdp.a}</span></div>
@@ -185,24 +179,17 @@
     function addToSlip(matchId, home, away, market, selection, odds) {
         if(odds === "-") return;
         const slipContainer = document.getElementById('slip-container');
-        const slipAction = document.getElementById('slip-action');
-        if(!slipContainer || !slipAction) return;
-
+        if(!slipContainer) return;
         slip = [{ matchId, home, away, market, selection, odds: parseFloat(odds) }];
-        slipContainer.innerHTML = `
-            <div class="bg-yellow-50 border border-yellow-400 p-2 rounded text-[10px]">
-                <div class="flex justify-between font-bold text-blue-900"><span>${selection}</span><span class="text-red-700">${odds}</span></div>
-                <div class="text-gray-500">${market}</div><div class="mt-1 font-bold">${home} vs ${away}</div>
-            </div>`;
-        slipAction.classList.remove('hidden');
+        slipContainer.innerHTML = `<div class="bg-yellow-50 border border-yellow-400 p-2 rounded text-[10px]"><b>${selection} @${odds}</b><br>${market}<br>${home} vs ${away}</div>`;
+        document.getElementById('slip-action').classList.remove('hidden');
         calcWin();
     }
 
     function calcWin() {
         const stakeInput = document.getElementById('stake-input');
-        const maxWin = document.getElementById('max-win');
-        if(!stakeInput || !maxWin || slip.length === 0) return;
-        maxWin.innerText = (parseInt(stakeInput.value || 0) * slip[0].odds).toLocaleString();
+        if(!stakeInput || slip.length === 0) return;
+        document.getElementById('max-win').innerText = (parseInt(stakeInput.value || 0) * slip[0].odds).toLocaleString();
     }
 
     async function placeBet() {
@@ -210,16 +197,9 @@
         if(!stakeInput || slip.length === 0) return;
         const stake = parseInt(stakeInput.value);
         if(stake > currentUser.balance) return alert("Insufficient Balance!");
-        
         const ticket = { matches: [{ matchName: `${slip[0].home} vs ${slip[0].away}`, sel: slip[0].selection, odds: slip[0].odds }], stake, date: new Date().toLocaleString(), status: "Running" };
         const res = await fetch(`${API_BASE}/user/bet`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username: currentUser.username, stake, ticket }) });
-        
-        if(res.ok) {
-            alert("Bet Successful!");
-            document.getElementById('slip-action').classList.add('hidden');
-            document.getElementById('slip-container').innerHTML = '<div class="italic text-gray-500 text-center py-5">Please select an odd.</div>';
-            syncUser();
-        }
+        if(res.ok) { alert("Bet Successful!"); document.getElementById('slip-action').classList.add('hidden'); syncUser(); }
     }
 
     function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }
