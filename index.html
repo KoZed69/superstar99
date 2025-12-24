@@ -95,44 +95,81 @@
             allMatches = await res.json(); renderTable();
         }
 
-        function renderTable() {
-            const tbody = document.getElementById('match-body'); tbody.innerHTML = '';
-            let leagueGroups = {};
-            allMatches.forEach(m => { if(!leagueGroups[m.league]) leagueGroups[m.league]=[]; leagueGroups[m.league].push(m); });
+        // index.html ထဲရှိ renderTable function ကို ဤကုဒ်ဖြင့် အစားထိုးပါ
+function renderTable() {
+    const tbody = document.getElementById('match-body'); tbody.innerHTML = '';
+    const now = new Date();
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
-            for(const [league, matches] of Object.entries(leagueGroups)) {
-                tbody.innerHTML += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
-                matches.forEach(m => {
-                    const time = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                    tbody.innerHTML += `
-                    <tr class="border-b border-gray-300">
-                        <td class="p-1 border-r bg-gray-50">
-                            <div class="text-[9px] text-gray-500">${time}</div>
-                            <div class="font-bold">${m.home}</div><div class="font-bold">${m.away}</div>
-                        </td>
-                        <td class="p-1 border-r">
-                            <div class="flex justify-between"><span>${m.fullTime.hdp.label}</span><span class="odd-btn">${m.fullTime.hdp.h}</span></div>
-                            <div class="flex justify-between"><span></span><span class="odd-btn">${m.fullTime.hdp.a}</span></div>
-                        </td>
-                        <td class="p-1 border-r">
-                            <div class="flex justify-between"><span class="text-gray-500">u${m.fullTime.ou.label}</span><span class="odd-btn">${m.fullTime.ou.o}</span></div>
-                            <div class="flex justify-between"><span></span><span class="odd-btn">${m.fullTime.ou.u}</span></div>
-                        </td>
-                        <td class="p-1 border-r bg-red-50">
-                            <div class="flex justify-between"><span>${m.firstHalf.hdp.label}</span><span class="odd-btn">${m.firstHalf.hdp.h}</span></div>
-                            <div class="flex justify-between"><span></span><span class="odd-btn">${m.firstHalf.hdp.a}</span></div>
-                        </td>
-                        <td class="p-1 border-r bg-red-50">
-                            <div class="flex justify-between"><span class="text-gray-500">u${m.firstHalf.ou.label}</span><span class="odd-btn">${m.firstHalf.ou.o}</span></div>
-                            <div class="flex justify-between"><span></span><span class="odd-btn">${m.firstHalf.ou.u}</span></div>
-                        </td>
-                        <td class="p-1 text-center font-bold">
-                            <div>${m.fullTime.xx.h}</div><div>${m.fullTime.xx.a}</div>
-                        </td>
-                    </tr>`;
-                });
-            }
-        }
+    // Tab အလိုက် Filter လုပ်ခြင်း
+    let filtered = allMatches.filter(m => {
+        if (currentTab === 'Live') return m.isLive === true; // Live ပွဲများကိုသာ ပြရန်
+        if (currentTab === 'Today') return m.isLive === false; // ယနေ့ပွဲစဉ်များပြရန်
+        if (currentTab === 'Early') return mTime > todayEnd; // နောင်လာမည့်ပွဲများ
+        return true;
+    });
+
+    let leagueGroups = {};
+    filtered.forEach(m => { if(!leagueGroups[m.league]) leagueGroups[m.league]=[]; leagueGroups[m.league].push(m); });
+const timeDisplay = m.isLive ? `<span class="text-red-600 font-bold">${m.timer}' <br> ${m.score}</span>` : time;
+
+    for(const [league, matches] of Object.entries(leagueGroups)) {
+        tbody.innerHTML += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
+        matches.forEach(m => {
+            const time = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            
+            // Malay Odds Style Grid
+            tbody.innerHTML += `
+            <tr class="border-b border-gray-300">
+                <td class="p-1 border-r bg-gray-50 text-[10px]">
+                    <div class="text-gray-500">${time}</div>
+                    <div class="font-bold text-blue-900">${m.home}</div>
+                    <div class="font-bold text-blue-900">${m.away}</div>
+                </td>
+                <td class="p-1 border-r text-center">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-gray-600">${m.fullTime.hdp.label}</span>
+                        <span class="odd-btn ${parseFloat(m.fullTime.hdp.h) < 0 ? 'text-red-600' : 'text-black'}">${m.fullTime.hdp.h}</span>
+                    </div>
+                    <div class="flex justify-end mt-1">
+                        <span class="odd-btn ${parseFloat(m.fullTime.hdp.a) < 0 ? 'text-red-600' : 'text-black'}">${m.fullTime.hdp.a}</span>
+                    </div>
+                </td>
+                <td class="p-1 border-r text-center">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500">u${m.fullTime.ou.label}</span>
+                        <span class="odd-btn text-blue-700">${m.fullTime.ou.o}</span>
+                    </div>
+                    <div class="flex justify-end mt-1">
+                        <span class="odd-btn text-blue-700">${m.fullTime.ou.u}</span>
+                    </div>
+                </td>
+                <td class="p-1 border-r bg-pink-50 text-center">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-gray-500">${m.firstHalf.hdp.label}</span>
+                        <span class="odd-btn">${m.firstHalf.hdp.h}</span>
+                    </div>
+                    <div class="flex justify-end mt-1">
+                        <span class="odd-btn">${m.firstHalf.hdp.a}</span>
+                    </div>
+                </td>
+                <td class="p-1 border-r bg-pink-50 text-center">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">u${m.firstHalf.ou.label}</span>
+                        <span class="odd-btn">${m.firstHalf.ou.o}</span>
+                    </div>
+                    <div class="flex justify-end mt-1">
+                        <span class="odd-btn">${m.firstHalf.ou.u}</span>
+                    </div>
+                </td>
+                <td class="p-1 text-center font-bold">
+                    <div class="odd-btn">${m.fullTime.xx.h}</div>
+                    <div class="odd-btn">${m.fullTime.xx.a}</div>
+                </td>
+            </tr>`;
+        });
+    }
+}
         function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }
         init();
     </script>
