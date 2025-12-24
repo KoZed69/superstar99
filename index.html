@@ -70,9 +70,7 @@
                 <div class="italic text-gray-500 text-center py-5">Please select an odd.</div>
             </div>
             <div id="slip-action" class="p-2 border-t border-gray-400 hidden">
-                <div class="flex justify-between font-bold mb-2"><span>Stake:</span>
-                    <input type="number" id="stake-input" oninput="calcWin()" class="w-24 border border-blue-800 px-1 text-right" value="1000">
-                </div>
+                <div class="flex justify-between font-bold mb-2"><span>Stake:</span><input type="number" id="stake-input" oninput="calcWin()" class="w-24 border border-blue-800 px-1 text-right" value="1000"></div>
                 <div class="flex justify-between text-red-700 font-bold mb-3"><span>Max Win:</span><span id="max-win">0</span></div>
                 <button onclick="placeBet()" class="w-full bg-red-700 text-white font-bold py-2 rounded">PLACE BET</button>
             </div>
@@ -88,7 +86,7 @@
             if(!currentUser) return window.location.href = 'login.html';
             document.getElementById('user-name').innerText = currentUser.username;
             await fetchOdds(); syncUser();
-            setInterval(fetchOdds, 30000); // 30s auto-refresh
+            setInterval(fetchOdds, 30000); 
         }
 
         async function syncUser() {
@@ -138,6 +136,7 @@
             for(const [league, matches] of Object.entries(leagueGroups)) {
                 tbody.innerHTML += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
                 matches.forEach(m => {
+                    // Live ပွဲများအတွက် သိသာသော Score နှင့် Timer ပြသခြင်း
                     const liveInfo = `<div class="text-red-600 font-bold">${m.timer}'</div><div class="bg-red-600 text-white px-1 rounded inline-block font-black">${m.score}</div>`;
                     const timeDisp = m.isLive ? liveInfo : `<div class="text-gray-500">${new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>`;
                     
@@ -168,7 +167,7 @@
 
         async function placeBet() {
             const stake = parseInt(document.getElementById('stake-input').value);
-            if(stake > currentUser.balance) return alert("Low Funds");
+            if(stake > currentUser.balance) return alert("Insufficient Balance!");
             const ticket = { matches: [{ matchName: `${currentSlip.h} vs ${currentSlip.a}`, sel: currentSlip.sel, odds: currentSlip.odds }], stake, win: document.getElementById('max-win').innerText, date: new Date().toLocaleString(), status: "Running" };
             const res = await fetch(`${API_BASE}/user/bet`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username: currentUser.username, stake, ticket }) });
             if(res.ok) { alert("Bet Successful!"); currentSlip = null; document.getElementById('slip-action').classList.add('hidden'); syncUser(); renderTable(); }

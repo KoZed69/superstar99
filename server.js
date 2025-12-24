@@ -31,17 +31,14 @@ function toMalay(decimal) {
 
 app.get('/odds', async (req, res) => {
     try {
-        console.log("⏳ Fetching 7-Day & Live Data...");
-        
-        // ၁။ Live (In-Play) ပွဲစဉ်များ အရင်ခေါ်ယူခြင်း
         const inplayRes = await axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } });
         
-        // ၂။ နောက်လာမည့် ၇ ရက်စာအတွက် loop ပတ်၍ ခေါ်ယူခြင်း
+        // ၇ ရက်စာ Upcoming ဒေတာများကို တစ်ပြိုင်နက် ဆွဲယူခြင်း
         const upcomingPromises = [];
         for (let i = 0; i < 7; i++) {
             const date = new Date();
             date.setDate(date.getDate() + i);
-            const dateStr = date.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD format
+            const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
             upcomingPromises.push(
                 axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1, day: dateStr } })
                 .catch(() => ({ data: { results: [] } }))
@@ -76,7 +73,6 @@ app.get('/odds', async (req, res) => {
                     }
                 };
             });
-        console.log(`✅ Success: Found ${processed.length} matches.`);
         res.json(processed);
     } catch (e) { res.status(200).json([]); }
 });
@@ -97,4 +93,4 @@ app.post('/user/bet', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Perfect Server Live on ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 GL99 Server Live on ${PORT}`));
