@@ -31,9 +31,12 @@ function toMalay(decimal) {
 
 app.get('/odds', async (req, res) => {
     try {
-        console.log("⏳ Fetching 7-Day & In-Play Data...");
+        console.log("⏳ Fetching Real-time In-Play & 7-Day Data...");
+        
+        // ၁။ Live (In-Play) ဆွဲယူခြင်း
         const inplayRes = await axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } });
         
+        // ၂။ ၇ ရက်စာ Upcoming ဆွဲယူခြင်း
         const upcomingPromises = [];
         for (let i = 0; i < 7; i++) {
             const date = new Date();
@@ -45,15 +48,15 @@ app.get('/odds', async (req, res) => {
             );
         }
 
-        const upcomingResultsArray = await Promise.all(upcomingPromises);
-        
-        // --- Perfection Fix: Tagging matches clearly ---
-        const inplayMatches = (inplayRes.data.results || []).map(m => ({ ...m, isLive: true }));
-        let upcomingRaw = [];
-        upcomingResultsArray.forEach(r => { if(r.data && r.data.results) upcomingRaw = [...upcomingRaw, ...r.data.results]; });
-        const upcomingMatches = upcomingRaw.map(m => ({ ...m, isLive: false }));
+        const upcomingResults = await Promise.all(upcomingPromises);
 
-        const allRaw = [...inplayMatches, ...upcomingMatches];
+        // --- Live နှင့် Upcoming ကို တိကျစွာ ခွဲခြားခြင်း ---
+        const liveMatches = (inplayRes.data.results || []).map(m => ({ ...m, isLiveFlag: true }));
+        let upcomingRaw = [];
+        upcomingResults.forEach(r => { if(r.data && r.data.results) upcomingRaw = [...upcomingRaw, ...r.data.results]; });
+        const upcomingMatches = upcomingRaw.map(m => ({ ...m, isLiveFlag: false }));
+
+        const allRaw = [...liveMatches, ...upcomingMatches];
 
         const processed = allRaw
             .filter(m => m.league && !m.league.name.toLowerCase().includes("esoccer"))
@@ -62,7 +65,7 @@ app.get('/odds', async (req, res) => {
                 return {
                     id: m.id, league: m.league.name, home: m.home.name, away: m.away.name,
                     time: new Date(m.time * 1000).toISOString(),
-                    isLive: m.isLive, // တိုက်ရိုက် Tag လုပ်ထားသော value ကို သုံးခြင်း
+                    isLive: m.isLiveFlag, // server-side မှ တိုက်ရိုက် tag ပေးလိုက်ခြင်း
                     score: m.ss || "0-0",
                     timer: m.timer?.tm || "0",
                     fullTime: {
@@ -76,7 +79,7 @@ app.get('/odds', async (req, res) => {
                     }
                 };
             });
-        console.log(`✅ Success: Total ${processed.length} matches.`);
+        console.log(`✅ Success: Found ${processed.length} matches (Live: ${liveMatches.length})`);
         res.json(processed);
     } catch (e) { res.status(200).json([]); }
 });

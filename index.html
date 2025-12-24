@@ -107,8 +107,11 @@ function setTab(tab, el) {
 function renderTable() {
     const tbody = document.getElementById('match-body'); 
     if(!tbody) return;
+    tbody.innerHTML = '';
+    
     const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
+    // --- Tab Filtering Logic ---
     let filtered = allMatches.filter(m => {
         const mTime = new Date(m.time);
         if (currentTab === 'Live') return m.isLive === true;
@@ -117,14 +120,14 @@ function renderTable() {
         return true;
     });
 
-    // --- Dynamic Sidebar Counts Update ---
-    const liveCount = allMatches.filter(m => m.isLive).length;
-    const todayCount = allMatches.filter(m => !m.isLive && new Date(m.time) <= todayEnd).length;
-    const earlyCount = allMatches.filter(m => new Date(m.time) > todayEnd).length;
-
-    // Sidebar text ရှိ element များကို update လုပ်ခြင်း
+    // Sidebar Counts အားလုံးကို တစ်ပြိုင်နက် Update လုပ်ခြင်း
+    const liveCnt = allMatches.filter(m => m.isLive).length;
     const hdpEl = document.getElementById('cnt-hdp');
+    const plyEl = document.getElementById('cnt-parlay');
+    
+    // Sidebar တွင် active ဖြစ်နေသော Tab ၏ အရေအတွက်ကို ပြသခြင်း
     if(hdpEl) hdpEl.innerText = filtered.length;
+    if(plyEl) plyEl.innerText = filtered.length;
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-gray-500 italic">No matches available in ${currentTab} right now.</td></tr>`;
@@ -139,7 +142,7 @@ function renderTable() {
         htmlBuffer += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
         matches.forEach(m => {
             const timeStr = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            // Score Display with blinking effect for Live
+            // Live Info (Score & Timer) Display
             const timeDisp = m.isLive ? `<div class="text-red-600 font-bold animate-pulse">${m.timer}'</div><div class="bg-red-600 text-white px-1 rounded inline-block font-black">${m.score}</div>` : `<div class="text-gray-500">${timeStr}</div>`;
 
             htmlBuffer += `
@@ -148,8 +151,8 @@ function renderTable() {
                 <td class="p-1 border-r"><div class="flex justify-between"><span>${m.fullTime.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.home}','${m.fullTime.hdp.h}')">${m.fullTime.hdp.h}</span></div><div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.away}','${m.fullTime.hdp.a}')">${m.fullTime.hdp.a}</span></div></td>
                 <td class="p-1 border-r"><div class="flex justify-between"><span>u${m.fullTime.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.OU','Over','${m.fullTime.ou.o}')">${m.fullTime.ou.o}</span></div><div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.OU','Under','${m.fullTime.ou.u}')">${m.fullTime.ou.u}</span></div></td>
                 <td class="p-1 border-r bg-pink-50"><div class="flex justify-between"><span>${m.firstHalf.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.HDP','${m.home}','${m.firstHalf.hdp.h}')">${m.firstHalf.hdp.h}</span></div><div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.HDP','${m.away}','${m.firstHalf.hdp.a}')">${m.firstHalf.hdp.a}</span></div></td>
-                <td class="p-1 border-r bg-pink-50"><div class="flex justify-between"><span>u${m.firstHalf.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Over','${m.firstHalf.ou.o}')">${m.firstHalf.ou.o}</span></div><div class="flex justify-end mt-1"><span class="odd-btn" onclick=\"addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Under','${m.firstHalf.ou.u}')\">${m.firstHalf.ou.u}</span></div></td>
-                <td class="p-1 text-center font-bold"><div class="odd-btn" onclick=\"addToSlip('${m.id}','${m.home}','${m.away}','1X2','Home','${m.fullTime.xx.h}')\">${m.fullTime.xx.h}</div><div class="odd-btn mt-1" onclick=\"addToSlip('${m.id}','${m.home}','${m.away}','1X2','Away','${m.fullTime.xx.a}')\">${m.fullTime.xx.a}</div></td>
+                <td class="p-1 border-r bg-pink-50"><div class="flex justify-between"><span>u${m.firstHalf.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Over','${m.firstHalf.ou.o}')">${m.firstHalf.ou.o}</span></div><div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Under','${m.firstHalf.ou.u}')">${m.firstHalf.ou.u}</span></div></td>
+                <td class="p-1 text-center font-bold"><div class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1X2','Home','${m.fullTime.xx.h}')">${m.fullTime.xx.h}</div><div class="odd-btn mt-1" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1X2','Away','${m.fullTime.xx.a}')">${m.fullTime.xx.a}</div></td>
             </tr>`;
         });
     }
