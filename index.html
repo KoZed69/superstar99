@@ -82,7 +82,7 @@
     const currentUser = JSON.parse(localStorage.getItem('gl99_user'));
     let allMatches = [], currentTab = 'Today', slip = [];
 
-    // syncUser must be defined before init
+    // syncUser definition moved up to prevent ReferenceError
     async function syncUser() {
         if (!currentUser) return;
         try {
@@ -126,10 +126,11 @@
     function renderTable() {
         const tbody = document.getElementById('match-body'); 
         if(!tbody) return;
+        tbody.innerHTML = '';
         const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
         let filtered = allMatches.filter(m => {
-            // Strong Live detection logic
+            // Strong Live detection logic for guaranteed display
             const isActuallyLive = m.isLive === true || (m.timer && m.timer !== "0") || (m.score && m.score !== "0-0");
             if (currentTab === 'Live') return isActuallyLive;
             const mTime = new Date(m.time);
