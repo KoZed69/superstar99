@@ -72,7 +72,10 @@ app.get('/odds', async (req, res) => {
             };
         });
         res.json(processed);
-    } catch (e) { res.status(500).json([]); }
+    } catch (e) { 
+    console.error("Odds API Error:", e.message);
+    res.status(200).json([]); // 500 အစား Empty Array (200) ကို ပြန်ပို့ပေးပါ
+}
 });
 
 // Auth & User routes များ ယခင်အတိုင်း ထည့်ထားပါ

@@ -94,8 +94,19 @@
             const res = await fetch(`${API_BASE}/odds`);
             allMatches = await res.json(); renderTable();
         }
-
-        function renderTable() {
+    function setTab(tab) {
+    currentTab = tab;
+    // Tab ခလုတ်များ၏ အရောင်ကို ပြောင်းလဲခြင်း
+    document.querySelectorAll('.sidebar .flex div').forEach(el => {
+        el.classList.remove('bg-white', 'text-red-700');
+        el.classList.add('cursor-pointer');
+    });
+    event.currentTarget.classList.add('bg-white', 'text-red-700');
+    event.currentTarget.classList.remove('cursor-pointer');
+    
+    renderTable(); // ဇယားကို ပြန်လည်ဆွဲထုတ်ခြင်း
+}    
+    function renderTable() {
     const tbody = document.getElementById('match-body'); 
     tbody.innerHTML = '';
     const now = new Date();
@@ -176,7 +187,7 @@
         });
     }
 }
-
+        
         function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }
         init();
     </script>
