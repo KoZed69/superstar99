@@ -10,11 +10,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kozed:Bwargyi69@cluster0.s5oybom.mongodb.net/gl99_db";
-const TOKEN = process.env.BETS_API_TOKEN || "241806-4Tr2NNdfhQxz9X";
+// --- CONFIG ---
+const MONGO_URI = process.env.MONGO_URI; 
+const TOKEN = process.env.BETS_API_TOKEN;
 const BETS_API_URL = "https://api.b365api.com/v1";
 
-mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Database Connected"));
+mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Production DB Connected"));
 
 const User = mongoose.model('User', new mongoose.Schema({
     username: { type: String, unique: true },
@@ -29,30 +30,40 @@ function toMalay(decimal) {
     return d <= 2.0 ? (d - 1).toFixed(2) : (-1 / (d - 1)).toFixed(2);
 }
 
+// ၇ ရက်စာ ဒေတာ ရယူခြင်း
 app.get('/odds', async (req, res) => {
     try {
-        const [inplayRes, upcomingRes] = await Promise.all([
-            axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } }),
-            axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1 } })
-        ]);
+        // ၁။ Live (In-Play) ဆွဲယူခြင်း
+        const inplayRes = await axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } });
 
-        const allRawMatches = [...(inplayRes.data.results || []), ...(upcomingRes.data.results || [])];
+        // ၂။ နောက်လာမည့် ၇ ရက်စာအတွက် loop ပတ်၍ ခေါ်ယူခြင်း
+        const daysToFetch = 7;
+        const upcomingPromises = [];
+        for (let i = 0; i < daysToFetch; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() + i);
+            const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
+            upcomingPromises.push(
+                axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1, day: dateStr } })
+                .catch(() => ({ data: { results: [] } }))
+            );
+        }
 
-        const processed = allRawMatches
+        const upcomingResults = await Promise.all(upcomingPromises);
+        let allRaw = inplayRes.data.results || [];
+        upcomingResults.forEach(r => { if(r.data.results) allRaw = [...allRaw, ...r.data.results]; });
+
+        const processed = allRaw
             .filter(m => m.league && !m.league.name.toLowerCase().includes("esoccer"))
             .map(m => {
-                // Professional Odds Mapping (Deep Search)
-                const mainSp = m.main?.sp || {};
-                const altSp = m.odds?.main?.sp || {};
-                const sp = Object.keys(mainSp).length > 0 ? mainSp : altSp;
-
+                const sp = m.main?.sp || m.odds?.main?.sp || {};
                 return {
                     id: m.id,
                     league: m.league.name,
                     home: m.home.name,
                     away: m.away.name,
                     time: new Date(m.time * 1000).toISOString(),
-                    isLive: !!m.timer,
+                    isLive: !!(m.timer || m.ss),
                     score: m.ss || "0-0",
                     timer: m.timer?.tm || "0",
                     fullTime: {
@@ -66,15 +77,15 @@ app.get('/odds', async (req, res) => {
                     }
                 };
             });
+
         res.json(processed);
     } catch (e) { res.status(200).json([]); }
 });
 
-// AUTH & USER ROUTES (Login, Sync, Bet)
 app.post('/auth/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ username });
-    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Invalid Login" });
+    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Invalid" });
     res.json({ success: true, user });
 });
 
@@ -86,7 +97,7 @@ app.post('/user/sync', async (req, res) => {
 app.post('/user/bet', async (req, res) => {
     const { username, stake, ticket } = req.body;
     const user = await User.findOne({ username });
-    if(user.balance < stake) return res.status(400).json({ error: "Insufficient Balance" });
+    if(user.balance < stake) return res.status(400).json({ error: "No Funds" });
     user.balance -= stake;
     user.history.unshift(ticket);
     await user.save();
@@ -94,4 +105,4 @@ app.post('/user/bet', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 GL99 Perfect Server on Port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Perfect Server Live on ${PORT}`));
