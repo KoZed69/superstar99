@@ -14,7 +14,7 @@ const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kozed:Bwargyi69@cluste
 const TOKEN = process.env.BETS_API_TOKEN || "241806-4Tr2NNdfhQxz9X";
 const BETS_API_URL = "https://api.b365api.com/v1";
 
-mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Database Connected"));
+mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Perfection DB Connected"));
 
 const User = mongoose.model('User', new mongoose.Schema({
     username: { type: String, unique: true },
@@ -31,10 +31,8 @@ function toMalay(decimal) {
 
 app.get('/odds', async (req, res) => {
     try {
-        // ၁။ Live (In-Play) ဆွဲယူခြင်း
         const inplayRes = await axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } });
         
-        // ၂။ ၇ ရက်စာ Upcoming ဆွဲယူခြင်း
         const upcomingPromises = [];
         for (let i = 0; i < 7; i++) {
             const date = new Date();
@@ -47,8 +45,6 @@ app.get('/odds', async (req, res) => {
         }
 
         const upcomingResults = await Promise.all(upcomingPromises);
-
-        // --- Live Tagging Fix ---
         const liveMatches = (inplayRes.data.results || []).map(m => ({ ...m, isLiveFlag: true }));
         let upcomingRaw = [];
         upcomingResults.forEach(r => { if(r.data && r.data.results) upcomingRaw = [...upcomingRaw, ...r.data.results]; });
@@ -57,11 +53,12 @@ app.get('/odds', async (req, res) => {
         const processed = [...liveMatches, ...upcomingMatches]
             .filter(m => m.league && !m.league.name.toLowerCase().includes("esoccer"))
             .map(m => {
+                // Odds Mapping Fix: Try multiple sources
                 const sp = m.main?.sp || m.odds?.main?.sp || {};
                 return {
                     id: m.id, league: m.league.name, home: m.home.name, away: m.away.name,
                     time: new Date(m.time * 1000).toISOString(),
-                    isLive: m.isLiveFlag,
+                    isLive: m.isLiveFlag || !!m.timer, 
                     score: m.ss || "0-0",
                     timer: m.timer?.tm || "0",
                     fullTime: {
@@ -75,12 +72,12 @@ app.get('/odds', async (req, res) => {
                     }
                 };
             });
-        console.log(`✅ Success: Total ${processed.length} matches (Live: ${liveMatches.length})`);
+        console.log(`✅ Matches Found: ${processed.length} (Live: ${liveMatches.length})`);
         res.json(processed);
     } catch (e) { res.status(200).json([]); }
 });
 
-// Full Logic Restoration
+// မူလ User & Auth Routes များကို အပြည့်အစုံ ပြန်လည်ဖြည့်သွင်းပေးထားပါသည်
 app.post('/auth/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ username });
@@ -96,7 +93,7 @@ app.post('/user/sync', async (req, res) => {
 app.post('/user/bet', async (req, res) => {
     const { username, stake, ticket } = req.body;
     const user = await User.findOne({ username });
-    if(!user || user.balance < stake) return res.status(400).json({ error: "Insufficient Balance" });
+    if(!user || user.balance < stake) return res.status(400).json({ error: "Low Funds" });
     user.balance -= stake;
     user.history.unshift(ticket);
     await user.save();
@@ -104,4 +101,4 @@ app.post('/user/bet', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000; 
-app.listen(PORT, () => console.log(`🚀 Perfect Server on Port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Perfect GL99 Live on Port ${PORT}`));
