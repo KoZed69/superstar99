@@ -87,11 +87,13 @@
         let allMatches = [], currentTab = 'Today', currentSlip = null;
 
         async function init() {
-            if(!currentUser) return window.location.href = 'login.html';
-            document.getElementById('user-name').innerText = currentUser.username;
-            await fetchOdds(); syncUser();
-            setInterval(fetchOdds, 30000);
-        }
+    if(!currentUser) return window.location.href = 'login.html';
+    document.getElementById('user-name').innerText = currentUser.username;
+    await fetchOdds(); 
+    syncUser();
+    // ၅ မိနစ်အစား စက္ကန့် ၃၀ တစ်ကြိမ် Refresh လုပ်ခြင်း
+    setInterval(fetchOdds, 30000); 
+}
 
         async function syncUser() {
             const r = await fetch(`${API_BASE}/user/sync`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currentUser.username})});

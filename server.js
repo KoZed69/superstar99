@@ -36,41 +36,36 @@ app.get('/odds', async (req, res) => {
             axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1 } })
         ]);
 
-        const inplayMatches = (inplayRes.data.results || []).map(m => ({ ...m, isLive: true }));
-        const upcomingMatches = (upcomingRes.data.results || []).map(m => ({ ...m, isLive: false }));
-        const allRawMatches = [...inplayMatches, ...upcomingMatches];
+        const allMatches = [...(inplayRes.data.results || []), ...(upcomingRes.data.results || [])];
 
-        const filtered = allRawMatches.filter(m => {
-            if(!m.league || !m.league.name) return false;
-            return !m.league.name.toLowerCase().includes("esoccer");
-        });
-
-        const processed = filtered.map(m => {
-            // Odds များကို နေရာနှစ်ခုစလုံးတွင် ရှာဖွေခြင်း
-            const o = m.main?.sp || m.odds?.main?.sp || {};
-
-            return {
-                id: m.id,
-                league: m.league.name,
-                home: m.home.name,
-                away: m.away.name,
-                time: new Date(m.time * 1000).toISOString(),
-                isLive: m.isLive,
-                score: m.ss || "0-0",
-                timer: m.timer?.tm || "0",
-                fullTime: {
-                    hdp: { label: o.handicap || "0", h: toMalay(o.h_odds), a: toMalay(o.a_odds) },
-                    ou: { label: o.total || "0", o: toMalay(o.o_odds), u: toMalay(o.u_odds) },
-                    xx: { h: o.h2h_home || "2.00", a: o.h2h_away || "2.00", d: o.h2h_draw || "3.00" }
-                },
-                firstHalf: {
-                    hdp: { label: o.h1_handicap || "0", h: toMalay(o.h1_h_odds), a: toMalay(o.h1_a_odds) },
-                    ou: { label: o.h1_total || "0", o: toMalay(o.h1_o_odds), u: toMalay(o.h1_u_odds) }
-                }
-            };
-        });
+        const processed = allMatches
+            .filter(m => m.league && !m.league.name.toLowerCase().includes("esoccer"))
+            .map(m => {
+                const sp = m.main?.sp || m.odds?.main?.sp || {};
+                return {
+                    id: m.id,
+                    league: m.league.name,
+                    home: m.home.name,
+                    away: m.away.name,
+                    time: new Date(m.time * 1000).toISOString(),
+                    isLive: !!m.timer,
+                    score: m.ss || "0-0",
+                    timer: m.timer?.tm || "0",
+                    fullTime: {
+                        hdp: { label: sp.handicap || "0", h: toMalay(sp.h_odds), a: toMalay(sp.a_odds) },
+                        ou: { label: sp.total || "0", o: toMalay(sp.o_odds), u: toMalay(sp.u_odds) },
+                        xx: { h: sp.h2h_home || "2.00", a: sp.h2h_away || "2.00" }
+                    },
+                    firstHalf: {
+                        hdp: { label: sp.h1_handicap || "0", h: toMalay(sp.h1_h_odds), a: toMalay(sp.h1_a_odds) },
+                        ou: { label: sp.h1_total || "0", o: toMalay(sp.h1_o_odds), u: toMalay(m.main?.sp?.h1_u_odds) }
+                    }
+                };
+            });
         res.json(processed);
-    } catch (e) { res.status(200).json([]); }
+    } catch (e) {
+        res.status(200).json([]);
+    }
 });
 
 // AUTH & USER ROUTES
