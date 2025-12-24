@@ -3,25 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GL99 - Professional View</title>
+    <title>GL99 - Professional Betting</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --bg-body: #dfe3ee; --header-grad: linear-gradient(to bottom, #3b5998 0%, #1e5396 100%); --league-grad: linear-gradient(to bottom, #a90329 0%, #6d0019 100%); }
         body { background: var(--bg-body); font-family: Tahoma, sans-serif; font-size: 11px; overflow: hidden; }
-        .top-header { background: var(--header-grad); height: 38px; display: flex; align-items: center; color: white; border-bottom: 1px solid #000; }
+        .top-header { background: var(--header-grad); height: 38px; display: flex; align-items: center; color: white; border-bottom: 1px solid #000; padding: 0 10px; }
         .wrapper { display: flex; height: calc(100vh - 38px); }
         .sidebar { width: 220px; background: #f2f2f2; border-right: 1px solid #999; display: flex; flex-direction: column; }
         .main-view { flex: 1; overflow-y: auto; background: white; padding: 5px; }
+        .menu-link { display: flex; justify-content: space-between; padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #ccc; font-weight: bold; }
+        .menu-link:hover, .menu-link.active { background: #ffffcc; color: #a90329; border-left: 3px solid #a90329; }
         .data-table { width: 100%; border-collapse: collapse; border: 1px solid #999; }
         .th-std { background: #5c87b2; color: white; border: 1px solid #fff; padding: 3px; font-weight: bold; text-align: center; }
         .row-head { background: var(--league-grad); color: white; padding: 4px 8px; font-weight: bold; }
-        .odd-btn { cursor: pointer; font-weight: bold; min-width: 45px; text-align: right; border-radius: 2px; }
+        .odd-btn { cursor: pointer; font-weight: bold; min-width: 45px; text-align: right; border-radius: 2px; transition: all 0.2s; }
         .odd-btn:hover { background: #ffffcc; color: red; outline: 1px solid red; }
     </style>
 </head>
 <body>
-    <div class="top-header px-3">
+    <div class="top-header">
         <div class="font-black italic text-yellow-400 text-lg mr-5">GL99</div>
         <div class="flex-1 text-xs font-bold items-center"><span id="user-name" class="text-yellow-400"></span> | <span id="bal">...</span></div>
         <button onclick="logout()" class="bg-red-700 px-2 py-1 rounded text-[10px]">Exit</button>
@@ -31,12 +33,17 @@
         <div class="sidebar">
             <div class="flex bg-gray-300 border-b border-gray-500 font-bold text-center">
                 <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Early')">Early</div>
-                <div class="flex-1 py-1 bg-white text-red-700" onclick="setTab('Today')">Today</div>
+                <div class="flex-1 py-1 bg-white text-red-700" id="today-tab" onclick="setTab('Today')">Today</div>
                 <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Live')">Live</div>
             </div>
             <div class="flex-1 overflow-y-auto p-2">
-                <div class="font-bold text-blue-800"><i class="fas fa-futbol"></i> SOCCER</div>
-                <div class="bg-yellow-100 p-2 mt-2 border-l-4 border-red-700 font-bold">HDP & OU</div>
+                <div class="font-bold text-blue-800 mb-1"><i class="fas fa-futbol"></i> SOCCER</div>
+                <div class="menu-link active"><span>HDP & OU</span> <span class="text-red-700">24</span></div>
+                <div class="menu-link"><span>Odd/Even & Total Goal</span> <span class="text-red-700">356</span></div>
+                <div class="menu-link"><span>1X2 & Double Chance</span> <span class="text-red-700">351</span></div>
+                <div class="menu-link"><span>Correct Score</span> <span class="text-red-700">268</span></div>
+                <div class="menu-link"><span>Mix Parlay</span> <span class="text-red-700">291</span></div>
+                <button onclick="fetchOdds()" class="w-full mt-4 bg-blue-100 py-1 text-xs font-bold border border-blue-400">REFRESH DATA</button>
             </div>
         </div>
 
@@ -82,12 +89,13 @@
             if(!currentUser) return window.location.href = 'login.html';
             document.getElementById('user-name').innerText = currentUser.username;
             await fetchOdds(); syncUser();
-            setInterval(fetchOdds, 30000); // 30s auto refresh
+            setInterval(fetchOdds, 30000);
         }
 
         async function syncUser() {
             const r = await fetch(`${API_BASE}/user/sync`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currentUser.username})});
             const d = await r.json(); document.getElementById('bal').innerText = d.balance.toLocaleString();
+            currentUser.balance = d.balance;
         }
 
         async function fetchOdds() {
@@ -95,11 +103,20 @@
             allMatches = await res.json(); renderTable();
         }
 
-        function setTab(tab) { currentTab = tab; renderTable(); }
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.sidebar .flex div').forEach(el => {
+                el.classList.remove('bg-white', 'text-red-700');
+                el.classList.add('cursor-pointer');
+            });
+            event.currentTarget.classList.add('bg-white', 'text-red-700');
+            event.currentTarget.classList.remove('cursor-pointer');
+            renderTable();
+        }
 
         function renderTable() {
             const tbody = document.getElementById('match-body'); tbody.innerHTML = '';
-            const now = new Date(); const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+            const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
 
             let filtered = allMatches.filter(m => {
                 const mTime = new Date(m.time);
@@ -108,6 +125,8 @@
                 if (currentTab === 'Early') return mTime > todayEnd;
                 return true;
             });
+
+            if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-gray-500 italic">No matches available right now.</td></tr>'; return; }
 
             let leagueGroups = {};
             filtered.forEach(m => { if(!leagueGroups[m.league]) leagueGroups[m.league]=[]; leagueGroups[m.league].push(m); });
@@ -121,23 +140,23 @@
                         <td class="p-1 border-r bg-gray-50 text-[10px]"><div>${timeDisp}</div><div class="font-bold text-blue-900">${m.home}</div><div class="font-bold text-blue-900">${m.away}</div></td>
                         <td class="p-1 border-r">
                             <div class="flex justify-between"><span>${m.fullTime.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.home}','${m.fullTime.hdp.h}')">${m.fullTime.hdp.h}</span></div>
-                            <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.away}','${m.fullTime.hdp.a}')">${m.fullTime.hdp.a}</span></div>
+                            <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.away}','${m.fullTime.hdp.a}')">${m.fullTime.hdp.a}</span></div>
                         </td>
                         <td class="p-1 border-r">
                             <div class="flex justify-between"><span>u${m.fullTime.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.OU','Over','${m.fullTime.ou.o}')">${m.fullTime.ou.o}</span></div>
-                            <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.OU','Under','${m.fullTime.ou.u}')">${m.fullTime.ou.u}</span></div>
+                            <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.OU','Under','${m.fullTime.ou.u}')">${m.fullTime.ou.u}</span></div>
                         </td>
                         <td class="p-1 border-r bg-pink-50">
                             <div class="flex justify-between"><span>${m.firstHalf.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.HDP','${m.home}','${m.firstHalf.hdp.h}')">${m.firstHalf.hdp.h}</span></div>
-                            <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.HDP','${m.away}','${m.firstHalf.hdp.a}')">${m.firstHalf.hdp.a}</span></div>
+                            <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.HDP','${m.away}','${m.firstHalf.hdp.a}')">${m.firstHalf.hdp.a}</span></div>
                         </td>
                         <td class="p-1 border-r bg-pink-50">
                             <div class="flex justify-between"><span>u${m.firstHalf.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Over','${m.firstHalf.ou.o}')">${m.firstHalf.ou.o}</span></div>
-                            <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Under','${m.firstHalf.ou.u}')">${m.firstHalf.ou.u}</span></div>
+                            <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Under','${m.firstHalf.ou.u}')">${m.firstHalf.ou.u}</span></div>
                         </td>
                         <td class="p-1 text-center font-bold">
                             <div class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1X2','Home','${m.fullTime.xx.h}')">${m.fullTime.xx.h}</div>
-                            <div class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1X2','Away','${m.fullTime.xx.a}')">${m.fullTime.xx.a}</div>
+                            <div class="odd-btn mt-1" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1X2','Away','${m.fullTime.xx.a}')">${m.fullTime.xx.a}</div>
                         </td>
                     </tr>`;
                 });
@@ -166,7 +185,7 @@
             if(stake > currentUser.balance) return alert("Insufficient Balance!");
             const ticket = { matches: [{ matchName: `${currentSlip.home} vs ${currentSlip.away}`, sel: currentSlip.selection, odds: currentSlip.odds }], stake, win: document.getElementById('max-win').innerText, date: new Date().toLocaleString(), status: "Running" };
             const res = await fetch(`${API_BASE}/user/bet`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username: currentUser.username, stake, ticket }) });
-            if(res.ok) { alert("Bet Placed!"); currentSlip = null; document.getElementById('slip-action').classList.add('hidden'); document.getElementById('slip-container').innerHTML = '<div class="italic text-gray-500 text-center py-5">Please select an odd.</div>'; syncUser(); }
+            if(res.ok) { alert("Bet Successful!"); currentSlip = null; document.getElementById('slip-action').classList.add('hidden'); document.getElementById('slip-container').innerHTML = '<div class="italic text-gray-500 text-center py-5">Please select an odd.</div>'; syncUser(); }
         }
 
         function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }

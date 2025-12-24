@@ -10,16 +10,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const MONGO_URI = process.env.MONGO_URI; 
-const TOKEN = process.env.BETS_API_TOKEN;
+// --- CONFIG ---
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kozed:Bwargyi69@cluster0.s5oybom.mongodb.net/gl99_db";
+const TOKEN = process.env.BETS_API_TOKEN || "241806-4Tr2NNdfhQxz9X";
 const BETS_API_URL = "https://api.b365api.com/v1";
 
-if (!MONGO_URI || !TOKEN) {
-    console.error("❌ ERROR: Check Environment Variables (MONGO_URI, BETS_API_TOKEN)");
-    process.exit(1); 
-}
-
-mongoose.connect(MONGO_URI).then(() => console.log("✅ DB Connected"));
+mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Production DB Connected"));
 
 const User = mongoose.model('User', new mongoose.Schema({
     username: { type: String, unique: true },
@@ -28,6 +24,7 @@ const User = mongoose.model('User', new mongoose.Schema({
     history: { type: Array, default: [] } 
 }));
 
+// Malay Odds Conversion Logic
 function toMalay(decimal) {
     if (!decimal || decimal === 1 || decimal === "-") return "-"; 
     const d = parseFloat(decimal);
@@ -36,7 +33,7 @@ function toMalay(decimal) {
 
 app.get('/odds', async (req, res) => {
     try {
-        // In-play နှင့် Upcoming နှစ်မျိုးလုံးကို ဆွဲယူခြင်း
+        // In-play နှင့် Upcoming နှစ်ခုလုံးကို တစ်ပြိုင်နက် ဆွဲယူခြင်း
         const [inplayRes, upcomingRes] = await Promise.all([
             axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } }),
             axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1 } })
@@ -47,11 +44,12 @@ app.get('/odds', async (req, res) => {
 
         const processed = filtered.map(m => {
             const isLive = !!m.timer;
-            const o = m.main?.sp || {}; // BetsAPI main odds source
+            // Odds Mapping Fix: main.sp သို့မဟုတ် odds.main.sp ထဲမှ ဒေတာကို ရှာယူခြင်း
+            const o = m.main?.sp || m.odds?.main?.sp || {};
 
             return {
                 id: m.id,
-                league: m.league?.name || "Unknown",
+                league: m.league?.name || "Unknown League",
                 home: m.home?.name || "Home",
                 away: m.away?.name || "Away",
                 time: new Date(m.time * 1000).toISOString(),
@@ -105,4 +103,4 @@ app.post('/user/bet', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 GL99 Real Soccer Live on Port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 GL99 Live on Port ${PORT}`));
