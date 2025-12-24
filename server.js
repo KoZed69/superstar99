@@ -29,13 +29,14 @@ function toMalay(decimal) {
     return d <= 2.0 ? (d - 1).toFixed(2) : (-1 / (d - 1)).toFixed(2);
 }
 
-// Polished /odds route with 7-day fetch logic
+// server.js ၏ /odds route ကို ဤကုဒ်ဖြင့် အစားထိုးပါ
 app.get('/odds', async (req, res) => {
     try {
-        // ၁။ Live (In-Play) ဆွဲယူခြင်း
+        console.log("⏳ Fetching 7-Day & Live Data...");
+        // Live ဒေတာ ဆွဲယူခြင်း
         const inplayRes = await axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } });
-
-        // ၂။ နောက်လာမည့် ၇ ရက်စာအတွက် loop ပတ်၍ ခေါ်ယူခြင်း
+        
+        // ၇ ရက်စာ Upcoming ဒေတာ ဆွဲယူခြင်း
         const upcomingPromises = [];
         for (let i = 0; i < 7; i++) {
             const date = new Date();
@@ -56,18 +57,13 @@ app.get('/odds', async (req, res) => {
             .map(m => {
                 const sp = m.main?.sp || m.odds?.main?.sp || {};
                 return {
-                    id: m.id,
-                    league: m.league.name,
-                    home: m.home.name,
-                    away: m.away.name,
-                    time: new Date(m.time * 1000).toISOString(),
-                    isLive: !!(m.timer || m.ss),
-                    score: m.ss || "0-0",
-                    timer: m.timer?.tm || "0",
+                    id: m.id, league: m.league.name, home: m.home.name, away: m.away.name,
+                    time: new Date(m.time * 1000).toISOString(), isLive: !!(m.timer || m.ss),
+                    score: m.ss || "0-0", timer: m.timer?.tm || "0",
                     fullTime: {
                         hdp: { label: sp.handicap || "0", h: toMalay(sp.h_odds), a: toMalay(sp.a_odds) },
                         ou: { label: sp.total || "0", o: toMalay(sp.o_odds), u: toMalay(sp.u_odds) },
-                        xx: { h: sp.h2h_home || "2.00", a: sp.h2h_away || "2.00", d: sp.h2h_draw || "3.00" }
+                        xx: { h: sp.h2h_home || "2.00", a: sp.h2h_away || "2.00" }
                     },
                     firstHalf: {
                         hdp: { label: sp.h1_handicap || "0", h: toMalay(sp.h1_h_odds), a: toMalay(sp.h1_a_odds) },
@@ -75,6 +71,7 @@ app.get('/odds', async (req, res) => {
                     }
                 };
             });
+        console.log(`✅ Success: Found ${processed.length} matches.`);
         res.json(processed);
     } catch (e) { res.status(200).json([]); }
 });
