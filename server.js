@@ -14,7 +14,12 @@ const MONGO_URI = process.env.MONGO_URI;
 const TOKEN = process.env.BETS_API_TOKEN;
 const BETS_API_URL = "https://api.b365api.com/v1";
 
-mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Production DB Connected"));
+if (!MONGO_URI || !TOKEN) {
+    console.error("❌ ERROR: Check Environment Variables (MONGO_URI, BETS_API_TOKEN)");
+    process.exit(1); 
+}
+
+mongoose.connect(MONGO_URI).then(() => console.log("✅ DB Connected"));
 
 const User = mongoose.model('User', new mongoose.Schema({
     username: { type: String, unique: true },
@@ -23,7 +28,6 @@ const User = mongoose.model('User', new mongoose.Schema({
     history: { type: Array, default: [] } 
 }));
 
-// Malay Odds Conversion Logic
 function toMalay(decimal) {
     if (!decimal || decimal === 1 || decimal === "-") return "-"; 
     const d = parseFloat(decimal);
@@ -32,6 +36,7 @@ function toMalay(decimal) {
 
 app.get('/odds', async (req, res) => {
     try {
+        // In-play နှင့် Upcoming နှစ်မျိုးလုံးကို ဆွဲယူခြင်း
         const [inplayRes, upcomingRes] = await Promise.all([
             axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } }),
             axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1 } })
@@ -42,8 +47,7 @@ app.get('/odds', async (req, res) => {
 
         const processed = filtered.map(m => {
             const isLive = !!m.timer;
-            // BetsAPI odds mapping fix
-            const o = m.main?.sp || {};
+            const o = m.main?.sp || {}; // BetsAPI main odds source
 
             return {
                 id: m.id,
@@ -101,4 +105,4 @@ app.post('/user/bet', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 GL99 Live on Port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 GL99 Real Soccer Live on Port ${PORT}`));

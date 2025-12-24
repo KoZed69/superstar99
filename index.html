@@ -13,10 +13,8 @@
         .wrapper { display: flex; height: calc(100vh - 38px); }
         .sidebar { width: 220px; background: #f2f2f2; border-right: 1px solid #999; display: flex; flex-direction: column; }
         .main-view { flex: 1; overflow-y: auto; background: white; padding: 5px; }
-        .menu-link { display: flex; justify-content: space-between; padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #ccc; font-weight: bold; }
-        .menu-link:hover, .menu-link.active { background: #ffffcc; color: #a90329; border-left: 3px solid #a90329; }
         .data-table { width: 100%; border-collapse: collapse; border: 1px solid #999; }
-        .th-std { background: #5c87b2; color: white; border: 1px solid #fff; padding: 3px; font-weight: bold; }
+        .th-std { background: #5c87b2; color: white; border: 1px solid #fff; padding: 3px; font-weight: bold; text-align: center; }
         .row-head { background: var(--league-grad); color: white; padding: 4px 8px; font-weight: bold; }
         .odd-btn { cursor: pointer; font-weight: bold; min-width: 45px; text-align: right; border-radius: 2px; }
         .odd-btn:hover { background: #ffffcc; color: red; outline: 1px solid red; }
@@ -25,10 +23,8 @@
 <body>
     <div class="top-header px-3">
         <div class="font-black italic text-yellow-400 text-lg mr-5">GL99</div>
-        <div class="flex h-full text-xs font-bold items-center">
-            <span id="user-name" class="text-yellow-400 font-bold mr-2"></span> | <span id="bal" class="ml-2 font-bold">...</span>
-        </div>
-        <button onclick="logout()" class="ml-auto bg-red-700 px-2 py-1 rounded text-[10px]">Exit</button>
+        <div class="flex-1 text-xs font-bold items-center"><span id="user-name" class="text-yellow-400"></span> | <span id="bal">...</span></div>
+        <button onclick="logout()" class="bg-red-700 px-2 py-1 rounded text-[10px]">Exit</button>
     </div>
 
     <div class="wrapper">
@@ -38,10 +34,9 @@
                 <div class="flex-1 py-1 bg-white text-red-700" onclick="setTab('Today')">Today</div>
                 <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Live')">Live</div>
             </div>
-            <div class="flex-1 overflow-y-auto"> 
-                <div class="menu-link active"><span>HDP & OU</span></div>
-                <div class="menu-link"><span>Mix Parlay</span></div>
-                <button onclick="fetchOdds()" class="w-full mt-2 bg-blue-100 py-1 text-xs font-bold border-y border-blue-400">REFRESH DATA</button>
+            <div class="flex-1 overflow-y-auto p-2">
+                <div class="font-bold text-blue-800"><i class="fas fa-futbol"></i> SOCCER</div>
+                <div class="bg-yellow-100 p-2 mt-2 border-l-4 border-red-700 font-bold">HDP & OU</div>
             </div>
         </div>
 
@@ -65,7 +60,7 @@
 
         <div class="sidebar" style="width: 250px; border-left: 1px solid #999;">
             <div class="bg-blue-900 text-white font-bold p-2 text-center">BET SLIP</div>
-            <div id="slip-container" class="p-2">
+            <div id="slip-container" class="p-2 min-h-[100px]">
                 <div class="italic text-gray-500 text-center py-5">Please select an odd.</div>
             </div>
             <div id="slip-action" class="p-2 border-t border-gray-400 hidden">
@@ -87,6 +82,7 @@
             if(!currentUser) return window.location.href = 'login.html';
             document.getElementById('user-name').innerText = currentUser.username;
             await fetchOdds(); syncUser();
+            setInterval(fetchOdds, 30000); // 30s auto refresh
         }
 
         async function syncUser() {
@@ -107,8 +103,8 @@
 
             let filtered = allMatches.filter(m => {
                 const mTime = new Date(m.time);
-                if (currentTab === 'Live') return m.isLive === true;
-                if (currentTab === 'Today') return m.isLive === false && mTime <= todayEnd;
+                if (currentTab === 'Live') return m.isLive;
+                if (currentTab === 'Today') return !m.isLive && mTime <= todayEnd;
                 if (currentTab === 'Early') return mTime > todayEnd;
                 return true;
             });
@@ -122,7 +118,7 @@
                     const timeDisp = m.isLive ? `<span class="text-red-600 font-bold">${m.timer}' ${m.score}</span>` : new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                     tbody.innerHTML += `
                     <tr class="border-b border-gray-300">
-                        <td class="p-1 border-r bg-gray-50"><div>${timeDisp}</div><div class="font-bold">${m.home}</div><div class="font-bold">${m.away}</div></td>
+                        <td class="p-1 border-r bg-gray-50 text-[10px]"><div>${timeDisp}</div><div class="font-bold text-blue-900">${m.home}</div><div class="font-bold text-blue-900">${m.away}</div></td>
                         <td class="p-1 border-r">
                             <div class="flex justify-between"><span>${m.fullTime.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.home}','${m.fullTime.hdp.h}')">${m.fullTime.hdp.h}</span></div>
                             <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.away}','${m.fullTime.hdp.a}')">${m.fullTime.hdp.a}</span></div>
@@ -160,6 +156,7 @@
         }
 
         function calcWin() {
+            if(!currentSlip) return;
             const stake = document.getElementById('stake-input').value || 0;
             document.getElementById('max-win').innerText = (stake * currentSlip.odds).toLocaleString();
         }
@@ -169,7 +166,7 @@
             if(stake > currentUser.balance) return alert("Insufficient Balance!");
             const ticket = { matches: [{ matchName: `${currentSlip.home} vs ${currentSlip.away}`, sel: currentSlip.selection, odds: currentSlip.odds }], stake, win: document.getElementById('max-win').innerText, date: new Date().toLocaleString(), status: "Running" };
             const res = await fetch(`${API_BASE}/user/bet`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username: currentUser.username, stake, ticket }) });
-            if(res.ok) { alert("Bet Successful!"); currentSlip = null; document.getElementById('slip-action').classList.add('hidden'); document.getElementById('slip-container').innerHTML = '<div class="italic text-gray-500 text-center py-5">Please select an odd.</div>'; syncUser(); }
+            if(res.ok) { alert("Bet Placed!"); currentSlip = null; document.getElementById('slip-action').classList.add('hidden'); document.getElementById('slip-container').innerHTML = '<div class="italic text-gray-500 text-center py-5">Please select an odd.</div>'; syncUser(); }
         }
 
         function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }
