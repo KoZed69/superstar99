@@ -23,79 +23,82 @@ const User = mongoose.model('User', new mongoose.Schema({
     history: { type: Array, default: [] } 
 }));
 
+// Malay Odds Conversion Logic
 function toMalay(decimal) {
     if (!decimal || decimal === 1 || decimal === "-") return "-"; 
     const d = parseFloat(decimal);
     return d <= 2.0 ? (d - 1).toFixed(2) : (-1 / (d - 1)).toFixed(2);
 }
 
-// server.js ၏ /odds route ကို အောက်ပါအတိုင်း အစားထိုးပါ
 app.get('/odds', async (req, res) => {
     try {
-        console.log("⏳ Fetching data from BetsAPI...");
-        
-        // In-play နှင့် Upcoming နှစ်ခုလုံးကို ခေါ်ယူခြင်း
         const [inplayRes, upcomingRes] = await Promise.all([
             axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } }),
             axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1 } })
         ]);
 
-        // ဒေတာများ ရှိမရှိ သေချာစွာ စစ်ဆေးခြင်း
-        const inplayMatches = inplayRes.data.results || [];
-        const upcomingMatches = upcomingRes.data.results || [];
-        const allRawMatches = [...inplayMatches, ...upcomingMatches];
+        const allRawMatches = [...(inplayRes.data.results || []), ...(upcomingRes.data.results || [])];
+        const filtered = allRawMatches.filter(m => !m.league.name.toLowerCase().includes("esoccer"));
 
-        console.log(`📊 Total Raw Matches: ${allRawMatches.length}`);
+        const processed = filtered.map(m => {
+            const isLive = !!m.timer;
+            // BetsAPI odds mapping fix
+            const o = m.main?.sp || {};
 
-        // Esoccer ဖယ်ထုတ်ခြင်း
-        const filtered = allRawMatches.filter(m => {
-            if (!m.league || !m.league.name) return false;
-            const name = m.league.name.toLowerCase();
-            return !name.includes("esoccer") && !name.includes("mins play");
+            return {
+                id: m.id,
+                league: m.league?.name || "Unknown",
+                home: m.home?.name || "Home",
+                away: m.away?.name || "Away",
+                time: new Date(m.time * 1000).toISOString(),
+                isLive: isLive,
+                score: m.ss || "0-0",
+                timer: m.timer?.tm || "0",
+                fullTime: {
+                    hdp: { label: o.handicap || "0", h: toMalay(o.h_odds), a: toMalay(o.a_odds) },
+                    ou: { label: o.total || "0", o: toMalay(o.o_odds), u: toMalay(o.u_odds) },
+                    xx: { h: o.h2h_home || "2.00", a: o.h2h_away || "2.00", d: o.h2h_draw || "3.00" }
+                },
+                firstHalf: {
+                    hdp: { label: o.h1_handicap || "0", h: toMalay(o.h1_h_odds), a: toMalay(o.h1_a_odds) },
+                    ou: { label: o.h1_total || "0", o: toMalay(o.h1_o_odds), u: toMalay(o.h1_u_odds) }
+                }
+            };
         });
-
-        // server.js ၏ Odds mapping အပိုင်းကို ဤသို့ ပြင်ဆင်ပါ
-const processed = filtered.map(m => {
-    const isLive = m.timer ? true : false;
-    
-    // BetsAPI ၏ Odds တည်နေရာ အမျိုးမျိုးကို စစ်ဆေးခြင်း
-    const sp = m.main?.sp || {};
-    const o = m.odds?.main?.sp || sp; // sp မရှိလျှင် odds.main.sp ကို ကြည့်မည်
-
-    return {
-        id: m.id,
-        league: m.league?.name || "Unknown",
-        home: m.home?.name || "Home",
-        away: m.away?.name || "Away",
-        time: new Date(m.time * 1000).toISOString(),
-        isLive: isLive,
-        score: m.ss || "0-0",
-        timer: m.timer?.tm || "0",
-        fullTime: {
-            hdp: { label: o.handicap || "0", h: toMalay(o.h_odds), a: toMalay(o.a_odds) },
-            ou: { label: o.total || "0", o: toMalay(o.o_odds), u: toMalay(o.u_odds) },
-            xx: { h: o.h2h_home || "2.00", a: o.h2h_away || "2.00", d: o.h2h_draw || "3.00" }
-        },
-        firstHalf: {
-            hdp: { label: o.h1_handicap || "0", h: toMalay(o.h1_h_odds), a: toMalay(o.h1_a_odds) },
-            ou: { label: o.h1_total || "0", o: toMalay(o.h1_o_odds), u: toMalay(o.h1_u_odds) }
-        }
-    };
-});
-
-        console.log(`✅ Processed Matches: ${processed.length}`);
         res.json(processed);
-    } catch (e) { 
-        console.error("❌ API Error Detail:", e.response?.data || e.message);
-        res.status(200).json([]); 
-    }
+    } catch (e) { res.status(200).json([]); }
 });
 
-// Auth & User routes များ ယခင်အတိုင်း ထည့်ထားပါ
-app.post('/auth/login', async (req, res) => { /*...*/ });
-app.post('/auth/register', async (req, res) => { /*...*/ });
-app.post('/user/sync', async (req, res) => { /*...*/ });
-app.post('/user/bet', async (req, res) => { /*...*/ });
+// AUTH & USER ROUTES
+app.post('/auth/login', async (req, res) => {
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
+    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Invalid Login" });
+    res.json({ success: true, user });
+});
+
+app.post('/auth/register', async (req, res) => {
+    const { username, password } = req.body;
+    if (await User.findOne({ username })) return res.status(400).json({ error: "User Exists" });
+    const user = new User({ username, password: await bcrypt.hash(password, 10), balance: 0 });
+    await user.save();
+    res.json({ success: true });
+});
+
+app.post('/user/sync', async (req, res) => {
+    const user = await User.findOne({ username: req.body.username });
+    res.json(user || {});
+});
+
+app.post('/user/bet', async (req, res) => {
+    const { username, stake, ticket } = req.body;
+    const user = await User.findOne({ username });
+    if(user.balance < stake) return res.status(400).json({ error: "Insufficient Balance" });
+    user.balance -= stake;
+    user.history.unshift(ticket);
+    await user.save();
+    res.json({ success: true });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 GL99 Live on Port ${PORT}`));

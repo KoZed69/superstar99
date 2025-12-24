@@ -12,29 +12,23 @@
         .top-header { background: var(--header-grad); height: 38px; display: flex; align-items: center; color: white; border-bottom: 1px solid #000; }
         .wrapper { display: flex; height: calc(100vh - 38px); }
         .sidebar { width: 220px; background: #f2f2f2; border-right: 1px solid #999; display: flex; flex-direction: column; }
-        .main-view { flex: 1; overflow: hidden; background: white; padding: 5px; }
+        .main-view { flex: 1; overflow-y: auto; background: white; padding: 5px; }
         .menu-link { display: flex; justify-content: space-between; padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #ccc; font-weight: bold; }
         .menu-link:hover, .menu-link.active { background: #ffffcc; color: #a90329; border-left: 3px solid #a90329; }
         .data-table { width: 100%; border-collapse: collapse; border: 1px solid #999; }
         .th-std { background: #5c87b2; color: white; border: 1px solid #fff; padding: 3px; font-weight: bold; }
         .row-head { background: var(--league-grad); color: white; padding: 4px 8px; font-weight: bold; }
-        .odd-btn { cursor: pointer; font-weight: bold; min-width: 45px; text-align: right; }
+        .odd-btn { cursor: pointer; font-weight: bold; min-width: 45px; text-align: right; border-radius: 2px; }
         .odd-btn:hover { background: #ffffcc; color: red; outline: 1px solid red; }
-        .red { color: #cc0000; } .black { color: #000; }
     </style>
 </head>
 <body>
     <div class="top-header px-3">
         <div class="font-black italic text-yellow-400 text-lg mr-5">GL99</div>
-        <div class="flex h-full text-xs font-bold">
-            <div class="px-3 flex items-center bg-blue-900 border-r border-blue-400">Home</div>
-            <div class="px-3 flex items-center border-r border-blue-400">Bet List</div>
-            <div class="px-3 flex items-center border-r border-blue-400">Statement</div>
+        <div class="flex h-full text-xs font-bold items-center">
+            <span id="user-name" class="text-yellow-400 font-bold mr-2"></span> | <span id="bal" class="ml-2 font-bold">...</span>
         </div>
-        <div class="flex-1 text-right text-[10px] leading-tight pr-3">
-            <span id="user-name" class="text-yellow-400 font-bold"></span> | <span id="bal" class="font-bold">...</span>
-        </div>
-        <button onclick="logout()" class="bg-red-700 px-2 py-1 rounded text-[10px]">Exit</button>
+        <button onclick="logout()" class="ml-auto bg-red-700 px-2 py-1 rounded text-[10px]">Exit</button>
     </div>
 
     <div class="wrapper">
@@ -45,17 +39,13 @@
                 <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Live')">Live</div>
             </div>
             <div class="flex-1 overflow-y-auto"> 
-                <div class="p-1 font-bold text-blue-800"><i class="fas fa-futbol"></i> SOCCER</div>
-                <div class="menu-link active"><span>HDP & OU</span> <span class="text-red-700">24</span></div>
-                <div class="menu-link"><span>Odd/Even & Total Goal</span> <span class="text-red-700">356</span></div>
-                <div class="menu-link"><span>1X2 & Double Chance</span> <span class="text-red-700">351</span></div>
-                <div class="menu-link"><span>Correct Score</span> <span class="text-red-700">268</span></div>
-                <div class="menu-link"><span>Mix Parlay</span> <span class="text-red-700">291</span></div>
+                <div class="menu-link active"><span>HDP & OU</span></div>
+                <div class="menu-link"><span>Mix Parlay</span></div>
                 <button onclick="fetchOdds()" class="w-full mt-2 bg-blue-100 py-1 text-xs font-bold border-y border-blue-400">REFRESH DATA</button>
             </div>
         </div>
 
-        <div class="main-view overflow-y-auto">
+        <div class="main-view">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -72,190 +62,118 @@
                 <tbody id="match-body"></tbody>
             </table>
         </div>
-        <div class="sidebar" style="width: 250px; border-left: 1px solid #999; border-right: none;">
-        <div class="bg-blue-900 text-white font-bold p-2 text-center">BET SLIP</div>
-        <div id="slip-container" class="p-2 overflow-y-auto" style="max-height: 400px;">
-            <div class="italic text-gray-500 text-center py-5">Please select an odd.</div>
-        </div>
-        <div id="slip-action" class="p-2 border-t border-gray-400 hidden">
-            <div class="flex justify-between font-bold mb-2">
-                <span>Stake:</span>
-                <input type="number" id="stake-input" oninput="calcWin()" class="w-24 border border-blue-800 px-1 text-right" value="1000">
+
+        <div class="sidebar" style="width: 250px; border-left: 1px solid #999;">
+            <div class="bg-blue-900 text-white font-bold p-2 text-center">BET SLIP</div>
+            <div id="slip-container" class="p-2">
+                <div class="italic text-gray-500 text-center py-5">Please select an odd.</div>
             </div>
-            <div class="flex justify-between text-red-700 font-bold mb-3">
-                <span>Max Win:</span>
-                <span id="max-win">0</span>
+            <div id="slip-action" class="p-2 border-t border-gray-400 hidden">
+                <div class="flex justify-between font-bold mb-2"><span>Stake:</span>
+                    <input type="number" id="stake-input" oninput="calcWin()" class="w-24 border border-blue-800 px-1 text-right" value="1000">
+                </div>
+                <div class="flex justify-between text-red-700 font-bold mb-3"><span>Max Win:</span><span id="max-win">0</span></div>
+                <button onclick="placeBet()" class="w-full bg-red-700 text-white font-bold py-2 rounded">PLACE BET</button>
             </div>
-            <button onclick="placeBet()" class="w-full bg-red-700 text-white font-bold py-2 rounded">PLACE BET</button>
         </div>
-    </div>
-</div>
     </div>
 
     <script>
-    const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-    const currentUser = JSON.parse(localStorage.getItem('gl99_user'));
-    let allMatches = [], currentTab = 'Today';
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+        const currentUser = JSON.parse(localStorage.getItem('gl99_user'));
+        let allMatches = [], currentTab = 'Today', currentSlip = null;
 
-    async function init() {
-        if(!currentUser) return window.location.href = 'login.html';
-        document.getElementById('user-name').innerText = currentUser.username;
-        await fetchOdds(); 
-        syncUser();
-        // ၅ မိနစ်တစ်ကြိမ် အလိုအလျောက် Refresh လုပ်ခြင်း
-        setInterval(fetchOdds, 300000);
-    }
+        async function init() {
+            if(!currentUser) return window.location.href = 'login.html';
+            document.getElementById('user-name').innerText = currentUser.username;
+            await fetchOdds(); syncUser();
+        }
 
-    async function syncUser() {
-        try {
+        async function syncUser() {
             const r = await fetch(`${API_BASE}/user/sync`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currentUser.username})});
-            const d = await r.json(); 
-            document.getElementById('bal').innerText = d.balance.toLocaleString();
-        } catch(e) { console.error("Sync Error"); }
-    }
+            const d = await r.json(); document.getElementById('bal').innerText = d.balance.toLocaleString();
+        }
 
-    async function fetchOdds() {
-        try {
+        async function fetchOdds() {
             const res = await fetch(`${API_BASE}/odds`);
-            allMatches = await res.json(); 
-            console.log("Matches Received:", allMatches.length);
-            renderTable();
-        } catch(e) { console.error("Fetch Error"); }
-    }
-
-    // Tab ပြောင်းလဲခြင်း
-    function setTab(tab) {
-        currentTab = tab;
-        document.querySelectorAll('.sidebar .flex div').forEach(el => {
-            el.classList.remove('bg-white', 'text-red-700');
-            el.classList.add('cursor-pointer');
-        });
-        // Click လုပ်လိုက်သည့် Tab ကို အရောင်ပြောင်းခြင်း
-        event.currentTarget.classList.add('bg-white', 'text-red-700');
-        event.currentTarget.classList.remove('cursor-pointer');
-        renderTable();
-    }
-
-    function renderTable() {
-        const tbody = document.getElementById('match-body'); 
-        tbody.innerHTML = '';
-        const now = new Date();
-        const todayEnd = new Date(); 
-        todayEnd.setHours(23, 59, 59, 999);
-
-        // အချက်အလက်များကို စစ်ထုတ်ခြင်း
-        let filtered = allMatches.filter(m => {
-            const mTime = new Date(m.time);
-            if (currentTab === 'Live') return m.isLive === true;
-            if (currentTab === 'Today') return m.isLive === false && mTime <= todayEnd;
-            if (currentTab === 'Early') return mTime > todayEnd;
-            return true;
-        });
-
-        if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-gray-500 italic">No matches available in ${currentTab} right now.</td></tr>`;
-            return;
+            allMatches = await res.json(); renderTable();
         }
 
-        let leagueGroups = {};
-        filtered.forEach(m => { 
-            if(!leagueGroups[m.league]) leagueGroups[m.league]=[]; 
-            leagueGroups[m.league].push(m); 
-        });
+        function setTab(tab) { currentTab = tab; renderTable(); }
 
-        for(const [league, matches] of Object.entries(leagueGroups)) {
-            tbody.innerHTML += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
-            matches.forEach(m => {
-                const time = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                const timeDisplay = m.isLive ? `<span class="text-red-600 font-bold">${m.timer}' <br> ${m.score}</span>` : time;
+        function renderTable() {
+            const tbody = document.getElementById('match-body'); tbody.innerHTML = '';
+            const now = new Date(); const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
 
-                tbody.innerHTML += `
-                <tr class="border-b border-gray-300">
-                    <td class="p-1 border-r bg-gray-50 text-[10px]">
-                        <div class="text-gray-500">${timeDisplay}</div>
-                        <div class="font-bold text-blue-900">${m.home}</div>
-                        <div class="font-bold text-blue-900">${m.away}</div>
-                    </td>
-                    <td class="p-1 border-r text-center">
-                        <div class="flex justify-between"><span>${m.fullTime?.hdp?.label || '0'}</span><span class="odd-btn">${m.fullTime?.hdp?.h || '-'}</span></div>
-                        <div class="flex justify-end mt-1"><span class="odd-btn">${m.fullTime?.hdp?.a || '-'}</span></div>
-                    </td>
-                    <td class="p-1 border-r text-center">
-                        <div class="flex justify-between"><span>u${m.fullTime?.ou?.label || '0'}</span><span class="odd-btn">${m.fullTime?.ou?.o || '-'}</span></div>
-                        <div class="flex justify-end mt-1"><span class="odd-btn">${m.fullTime?.ou?.u || '-'}</span></div>
-                    </td>
-                    <td class="p-1 border-r bg-pink-50 text-center">
-                        <div class="flex justify-between"><span>${m.firstHalf?.hdp?.label || '0'}</span><span class="odd-btn">${m.firstHalf?.hdp?.h || '-'}</span></div>
-                        <div class="flex justify-end mt-1"><span class="odd-btn">${m.firstHalf?.hdp?.a || '-'}</span></div>
-                    </td>
-                    <td class="p-1 border-r bg-pink-50 text-center">
-                        <div class="flex justify-between"><span>u${m.firstHalf?.ou?.label || '0'}</span><span class="odd-btn">${m.firstHalf?.ou?.o || '-'}</span></div>
-                        <div class="flex justify-end mt-1"><span class="odd-btn">${m.firstHalf?.ou?.u || '-'}</span></div>
-                    </td>
-                    <td class="p-1 text-center font-bold">
-                        <div>${m.fullTime?.xx?.h || '2.00'}</div><div>${m.fullTime?.xx?.a || '2.00'}</div>
-                    </td>
-                </tr>`;
+            let filtered = allMatches.filter(m => {
+                const mTime = new Date(m.time);
+                if (currentTab === 'Live') return m.isLive === true;
+                if (currentTab === 'Today') return m.isLive === false && mTime <= todayEnd;
+                if (currentTab === 'Early') return mTime > todayEnd;
+                return true;
             });
+
+            let leagueGroups = {};
+            filtered.forEach(m => { if(!leagueGroups[m.league]) leagueGroups[m.league]=[]; leagueGroups[m.league].push(m); });
+
+            for(const [league, matches] of Object.entries(leagueGroups)) {
+                tbody.innerHTML += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
+                matches.forEach(m => {
+                    const timeDisp = m.isLive ? `<span class="text-red-600 font-bold">${m.timer}' ${m.score}</span>` : new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    tbody.innerHTML += `
+                    <tr class="border-b border-gray-300">
+                        <td class="p-1 border-r bg-gray-50"><div>${timeDisp}</div><div class="font-bold">${m.home}</div><div class="font-bold">${m.away}</div></td>
+                        <td class="p-1 border-r">
+                            <div class="flex justify-between"><span>${m.fullTime.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.home}','${m.fullTime.hdp.h}')">${m.fullTime.hdp.h}</span></div>
+                            <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.HDP','${m.away}','${m.fullTime.hdp.a}')">${m.fullTime.hdp.a}</span></div>
+                        </td>
+                        <td class="p-1 border-r">
+                            <div class="flex justify-between"><span>u${m.fullTime.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.OU','Over','${m.fullTime.ou.o}')">${m.fullTime.ou.o}</span></div>
+                            <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','FT.OU','Under','${m.fullTime.ou.u}')">${m.fullTime.ou.u}</span></div>
+                        </td>
+                        <td class="p-1 border-r bg-pink-50">
+                            <div class="flex justify-between"><span>${m.firstHalf.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.HDP','${m.home}','${m.firstHalf.hdp.h}')">${m.firstHalf.hdp.h}</span></div>
+                            <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.HDP','${m.away}','${m.firstHalf.hdp.a}')">${m.firstHalf.hdp.a}</span></div>
+                        </td>
+                        <td class="p-1 border-r bg-pink-50">
+                            <div class="flex justify-between"><span>u${m.firstHalf.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Over','${m.firstHalf.ou.o}')">${m.firstHalf.ou.o}</span></div>
+                            <div class="flex justify-end"><span class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1H.OU','Under','${m.firstHalf.ou.u}')">${m.firstHalf.ou.u}</span></div>
+                        </td>
+                        <td class="p-1 text-center font-bold">
+                            <div class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1X2','Home','${m.fullTime.xx.h}')">${m.fullTime.xx.h}</div>
+                            <div class="odd-btn" onclick="addToSlip('${m.id}','${m.home}','${m.away}','1X2','Away','${m.fullTime.xx.a}')">${m.fullTime.xx.a}</div>
+                        </td>
+                    </tr>`;
+                });
+            }
         }
-    }
 
-    let currentSlip = null;
+        function addToSlip(matchId, home, away, market, selection, odds) {
+            if(odds === "-") return;
+            currentSlip = { matchId, home, away, market, selection, odds: parseFloat(odds) };
+            document.getElementById('slip-container').innerHTML = `
+                <div class="bg-yellow-50 border border-yellow-400 p-2 rounded text-[10px]">
+                    <div class="flex justify-between font-bold text-blue-900"><span>${selection}</span><span class="text-red-700">${odds}</span></div>
+                    <div class="text-gray-500">${market}</div><div class="mt-1 font-bold">${home} vs ${away}</div>
+                </div>`;
+            document.getElementById('slip-action').classList.remove('hidden'); calcWin();
+        }
 
-// Odds နှိပ်လိုက်လျှင် Slip ထဲသို့ ထည့်ခြင်း
-function addToSlip(matchId, home, away, market, selection, odds) {
-    currentSlip = { matchId, home, away, market, selection, odds: parseFloat(odds) };
-    document.getElementById('slip-container').innerHTML = `
-        <div class="bg-yellow-50 border border-yellow-400 p-2 rounded text-[10px]">
-            <div class="flex justify-between font-bold text-blue-900">
-                <span>${selection}</span>
-                <span class="text-red-700">${odds}</span>
-            </div>
-            <div class="text-gray-500">${market}</div>
-            <div class="mt-1 font-bold">${home} vs ${away}</div>
-        </div>
-    `;
-    document.getElementById('slip-action').classList.remove('hidden');
-    calcWin();
-}
+        function calcWin() {
+            const stake = document.getElementById('stake-input').value || 0;
+            document.getElementById('max-win').innerText = (stake * currentSlip.odds).toLocaleString();
+        }
 
-function calcWin() {
-    if(!currentSlip) return;
-    const stake = document.getElementById('stake-input').value || 0;
-    const win = (stake * currentSlip.odds).toLocaleString();
-    document.getElementById('max-win').innerText = win;
-}
+        async function placeBet() {
+            const stake = parseInt(document.getElementById('stake-input').value);
+            if(stake > currentUser.balance) return alert("Insufficient Balance!");
+            const ticket = { matches: [{ matchName: `${currentSlip.home} vs ${currentSlip.away}`, sel: currentSlip.selection, odds: currentSlip.odds }], stake, win: document.getElementById('max-win').innerText, date: new Date().toLocaleString(), status: "Running" };
+            const res = await fetch(`${API_BASE}/user/bet`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username: currentUser.username, stake, ticket }) });
+            if(res.ok) { alert("Bet Successful!"); currentSlip = null; document.getElementById('slip-action').classList.add('hidden'); document.getElementById('slip-container').innerHTML = '<div class="italic text-gray-500 text-center py-5">Please select an odd.</div>'; syncUser(); }
+        }
 
-async function placeBet() {
-    const stake = parseInt(document.getElementById('stake-input').value);
-    if(stake > currentUser.balance) return alert("Insufficient Balance!");
-    
-    const ticket = {
-        matches: [{ matchName: `${currentSlip.home} vs ${currentSlip.away}`, sel: currentSlip.selection, odds: currentSlip.odds }],
-        stake: stake,
-        win: document.getElementById('max-win').innerText,
-        date: new Date().toLocaleString(),
-        status: "Running"
-    };
-
-    const res = await fetch(`${API_BASE}/user/bet`, {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ username: currentUser.username, stake, ticket })
-    });
-    
-    if(res.ok) {
-        alert("Bet Placed Successfully!");
-        currentSlip = null;
-        document.getElementById('slip-action').classList.add('hidden');
-        document.getElementById('slip-container').innerHTML = '<div class="italic text-gray-500 text-center py-5">Please select an odd.</div>';
-        syncUser();
-    }
-}
-
-// renderTable ထဲရှိ odd-btn တိုင်းတွင် addToSlip function ကို လှမ်းခေါ်ရပါမည်
-// ဥပမာ - <span class="odd-btn" onclick="addToSlip('${m.id}', '${m.home}', '${m.away}', 'Full Time HDP', '${m.home}', '${m.fullTime.hdp.h}')">${m.fullTime.hdp.h}</span>
-    function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }
-    init();
-</script>
+        function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }
+        init();
+    </script>
 </body>
 </html>
