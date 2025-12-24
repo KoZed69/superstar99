@@ -75,121 +75,115 @@
     </div>
 
     <script>
-        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-        const currentUser = JSON.parse(localStorage.getItem('gl99_user'));
-        let allMatches = [], currentTab = 'Today';
+    const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+    const currentUser = JSON.parse(localStorage.getItem('gl99_user'));
+    let allMatches = [], currentTab = 'Today';
 
-        async function init() {
-            if(!currentUser) return window.location.href = 'login.html';
-            document.getElementById('user-name').innerText = currentUser.username;
-            await fetchOdds(); syncUser();
-        }
-
-        async function syncUser() {
-            const r = await fetch(`${API_BASE}/user/sync`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currentUser.username})});
-            const d = await r.json(); document.getElementById('bal').innerText = d.balance.toLocaleString();
-        }
-
-        async function fetchOdds() {
-            const res = await fetch(`${API_BASE}/odds`);
-            allMatches = await res.json(); renderTable();
-        }
-    function setTab(tab) {
-    currentTab = tab;
-    // Tab ခလုတ်များ၏ အရောင်ကို ပြောင်းလဲခြင်း
-    document.querySelectorAll('.sidebar .flex div').forEach(el => {
-        el.classList.remove('bg-white', 'text-red-700');
-        el.classList.add('cursor-pointer');
-    });
-    event.currentTarget.classList.add('bg-white', 'text-red-700');
-    event.currentTarget.classList.remove('cursor-pointer');
-    
-    renderTable(); // ဇယားကို ပြန်လည်ဆွဲထုတ်ခြင်း
-}    
-    function renderTable() {
-    const tbody = document.getElementById('match-body'); 
-    tbody.innerHTML = '';
-    const now = new Date();
-    const todayEnd = new Date(); 
-    todayEnd.setHours(23, 59, 59, 999);
-
-    // Tab အလိုက် Filter လုပ်ခြင်း (Syntax error ပြင်ပြီး)
-    let filtered = allMatches.filter(m => {
-        const mTime = new Date(m.time); // ဤနေရာတွင် mTime ကို ဖွင့်ဆိုရမည်
-        if (currentTab === 'Live') return m.isLive === true;
-        if (currentTab === 'Today') return m.isLive === false && mTime <= todayEnd;
-        if (currentTab === 'Early') return mTime > todayEnd;
-        return true;
-    });
-
-    let leagueGroups = {};
-    filtered.forEach(m => { 
-        if(!leagueGroups[m.league]) leagueGroups[m.league]=[]; 
-        leagueGroups[m.league].push(m); 
-    });
-
-    for(const [league, matches] of Object.entries(leagueGroups)) {
-        tbody.innerHTML += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
-        matches.forEach(m => {
-            const time = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            
-            // Live ပွဲများအတွက် အချိန်ပြသပုံ ပြင်ဆင်ခြင်း
-            const timeDisplay = m.isLive ? `<span class="text-red-600 font-bold">${m.timer}' <br> ${m.score}</span>` : time;
-
-            tbody.innerHTML += `
-            <tr class="border-b border-gray-300">
-                <td class="p-1 border-r bg-gray-50 text-[10px]">
-                    <div class="text-gray-500">${timeDisplay}</div>
-                    <div class="font-bold text-blue-900">${m.home}</div>
-                    <div class="font-bold text-blue-900">${m.away}</div>
-                </td>
-                <td class="p-1 border-r text-center">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold text-gray-600">${m.fullTime.hdp.label}</span>
-                        <span class="odd-btn ${parseFloat(m.fullTime.hdp.h) < 0 ? 'text-red-600' : 'text-black'}">${m.fullTime.hdp.h}</span>
-                    </div>
-                    <div class="flex justify-end mt-1">
-                        <span class="odd-btn ${parseFloat(m.fullTime.hdp.a) < 0 ? 'text-red-600' : 'text-black'}">${m.fullTime.hdp.a}</span>
-                    </div>
-                </td>
-                <td class="p-1 border-r text-center">
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-500">u${m.fullTime.ou.label}</span>
-                        <span class="odd-btn text-blue-700">${m.fullTime.ou.o}</span>
-                    </div>
-                    <div class="flex justify-end mt-1">
-                        <span class="odd-btn text-blue-700">${m.fullTime.ou.u}</span>
-                    </div>
-                </td>
-                <td class="p-1 border-r bg-pink-50 text-center">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold text-gray-500">${m.firstHalf.hdp.label}</span>
-                        <span class="odd-btn">${m.firstHalf.hdp.h}</span>
-                    </div>
-                    <div class="flex justify-end mt-1">
-                        <span class="odd-btn">${m.firstHalf.hdp.a}</span>
-                    </div>
-                </td>
-                <td class="p-1 border-r bg-pink-50 text-center">
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-400">u${m.firstHalf.ou.label}</span>
-                        <span class="odd-btn">${m.firstHalf.ou.o}</span>
-                    </div>
-                    <div class="flex justify-end mt-1">
-                        <span class="odd-btn">${m.firstHalf.ou.u}</span>
-                    </div>
-                </td>
-                <td class="p-1 text-center font-bold">
-                    <div class="odd-btn">${m.fullTime.xx.h}</div>
-                    <div class="odd-btn">${m.fullTime.xx.a}</div>
-                </td>
-            </tr>`;
-        });
+    async function init() {
+        if(!currentUser) return window.location.href = 'login.html';
+        document.getElementById('user-name').innerText = currentUser.username;
+        await fetchOdds(); 
+        syncUser();
+        // ၅ မိနစ်တစ်ကြိမ် အလိုအလျောက် Refresh လုပ်ခြင်း
+        setInterval(fetchOdds, 300000);
     }
-}
-        
-        function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }
-        init();
-    </script>
+
+    async function syncUser() {
+        try {
+            const r = await fetch(`${API_BASE}/user/sync`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currentUser.username})});
+            const d = await r.json(); 
+            document.getElementById('bal').innerText = d.balance.toLocaleString();
+        } catch(e) { console.error("Sync Error"); }
+    }
+
+    async function fetchOdds() {
+        try {
+            const res = await fetch(`${API_BASE}/odds`);
+            allMatches = await res.json(); 
+            console.log("Matches Received:", allMatches.length);
+            renderTable();
+        } catch(e) { console.error("Fetch Error"); }
+    }
+
+    // Tab ပြောင်းလဲခြင်း
+    function setTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.sidebar .flex div').forEach(el => {
+            el.classList.remove('bg-white', 'text-red-700');
+            el.classList.add('cursor-pointer');
+        });
+        // Click လုပ်လိုက်သည့် Tab ကို အရောင်ပြောင်းခြင်း
+        event.currentTarget.classList.add('bg-white', 'text-red-700');
+        event.currentTarget.classList.remove('cursor-pointer');
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('match-body'); 
+        tbody.innerHTML = '';
+        const now = new Date();
+        const todayEnd = new Date(); 
+        todayEnd.setHours(23, 59, 59, 999);
+
+        // အချက်အလက်များကို စစ်ထုတ်ခြင်း
+        let filtered = allMatches.filter(m => {
+            const mTime = new Date(m.time);
+            if (currentTab === 'Live') return m.isLive === true;
+            if (currentTab === 'Today') return m.isLive === false && mTime <= todayEnd;
+            if (currentTab === 'Early') return mTime > todayEnd;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-gray-500 italic">No matches available in ${currentTab} right now.</td></tr>`;
+            return;
+        }
+
+        let leagueGroups = {};
+        filtered.forEach(m => { 
+            if(!leagueGroups[m.league]) leagueGroups[m.league]=[]; 
+            leagueGroups[m.league].push(m); 
+        });
+
+        for(const [league, matches] of Object.entries(leagueGroups)) {
+            tbody.innerHTML += `<tr><td colspan="6" class="row-head">${league}</td></tr>`;
+            matches.forEach(m => {
+                const time = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const timeDisplay = m.isLive ? `<span class="text-red-600 font-bold">${m.timer}' <br> ${m.score}</span>` : time;
+
+                tbody.innerHTML += `
+                <tr class="border-b border-gray-300">
+                    <td class="p-1 border-r bg-gray-50 text-[10px]">
+                        <div class="text-gray-500">${timeDisplay}</div>
+                        <div class="font-bold text-blue-900">${m.home}</div>
+                        <div class="font-bold text-blue-900">${m.away}</div>
+                    </td>
+                    <td class="p-1 border-r text-center">
+                        <div class="flex justify-between"><span>${m.fullTime?.hdp?.label || '0'}</span><span class="odd-btn">${m.fullTime?.hdp?.h || '-'}</span></div>
+                        <div class="flex justify-end mt-1"><span class="odd-btn">${m.fullTime?.hdp?.a || '-'}</span></div>
+                    </td>
+                    <td class="p-1 border-r text-center">
+                        <div class="flex justify-between"><span>u${m.fullTime?.ou?.label || '0'}</span><span class="odd-btn">${m.fullTime?.ou?.o || '-'}</span></div>
+                        <div class="flex justify-end mt-1"><span class="odd-btn">${m.fullTime?.ou?.u || '-'}</span></div>
+                    </td>
+                    <td class="p-1 border-r bg-pink-50 text-center">
+                        <div class="flex justify-between"><span>${m.firstHalf?.hdp?.label || '0'}</span><span class="odd-btn">${m.firstHalf?.hdp?.h || '-'}</span></div>
+                        <div class="flex justify-end mt-1"><span class="odd-btn">${m.firstHalf?.hdp?.a || '-'}</span></div>
+                    </td>
+                    <td class="p-1 border-r bg-pink-50 text-center">
+                        <div class="flex justify-between"><span>u${m.firstHalf?.ou?.label || '0'}</span><span class="odd-btn">${m.firstHalf?.ou?.o || '-'}</span></div>
+                        <div class="flex justify-end mt-1"><span class="odd-btn">${m.firstHalf?.ou?.u || '-'}</span></div>
+                    </td>
+                    <td class="p-1 text-center font-bold">
+                        <div>${m.fullTime?.xx?.h || '2.00'}</div><div>${m.fullTime?.xx?.a || '2.00'}</div>
+                    </td>
+                </tr>`;
+            });
+        }
+    }
+
+    function logout() { localStorage.removeItem('gl99_user'); window.location.href = 'login.html'; }
+    init();
+</script>
 </body>
 </html>
