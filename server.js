@@ -29,53 +29,64 @@ function toMalay(decimal) {
     return d <= 2.0 ? (d - 1).toFixed(2) : (-1 / (d - 1)).toFixed(2);
 }
 
-// server.js ၏ /odds route ကို အောက်ပါအတိုင်း အဆင့်မြှင့်ပါ
+// server.js ၏ /odds route ကို အောက်ပါအတိုင်း အစားထိုးပါ
 app.get('/odds', async (req, res) => {
     try {
-        // ၁။ Upcoming နှင့် In-Play API နှစ်ခုလုံးကို တစ်ပြိုင်နက် ခေါ်ယူခြင်း
-        const [upcomingRes, inplayRes] = await Promise.all([
-            axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1 } }),
-            axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } })
+        console.log("⏳ Fetching data from BetsAPI...");
+        
+        // In-play နှင့် Upcoming နှစ်ခုလုံးကို ခေါ်ယူခြင်း
+        const [inplayRes, upcomingRes] = await Promise.all([
+            axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } }),
+            axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1 } })
         ]);
 
-        const upcomingMatches = upcomingRes.data.results || [];
+        // ဒေတာများ ရှိမရှိ သေချာစွာ စစ်ဆေးခြင်း
         const inplayMatches = inplayRes.data.results || [];
-        
-        // အားလုံးကို ပေါင်းလိုက်ခြင်း
+        const upcomingMatches = upcomingRes.data.results || [];
         const allRawMatches = [...inplayMatches, ...upcomingMatches];
 
+        console.log(`📊 Total Raw Matches: ${allRawMatches.length}`);
+
         // Esoccer ဖယ်ထုတ်ခြင်း
-        const filtered = allRawMatches.filter(m => !m.league.name.toLowerCase().includes("esoccer"));
+        const filtered = allRawMatches.filter(m => {
+            if (!m.league || !m.league.name) return false;
+            const name = m.league.name.toLowerCase();
+            return !name.includes("esoccer") && !name.includes("mins play");
+        });
 
         const processed = filtered.map(m => {
-            // Live ပွဲစဉ်ဟုတ်မဟုတ် စစ်ဆေးခြင်း
-            const isLive = m.timer ? true : false; 
+            const isLive = m.timer ? true : false;
             
+            // Odds များသည် main.sp သို့မဟုတ် အခြားနေရာတွင် ရှိနိုင်သဖြင့် အရန်စနစ်ဖြင့် ဆွဲယူခြင်း
+            const oddsSource = m.main?.sp || {};
+
             return {
                 id: m.id,
-                league: m.league.name,
-                home: m.home.name,
-                away: m.away.name,
+                league: m.league?.name || "Unknown League",
+                home: m.home?.name || "Home Team",
+                away: m.away?.name || "Away Team",
                 time: new Date(m.time * 1000).toISOString(),
                 isLive: isLive,
-                score: m.ss || "0-0", // Live ရမှတ်
-                timer: m.timer?.tm || "0", // မိနစ်
+                score: m.ss || "0-0",
+                timer: m.timer?.tm || "0",
                 fullTime: {
-                    hdp: { label: m.main?.sp?.handicap || "0", h: toMalay(m.main?.sp?.h_odds), a: toMalay(m.main?.sp?.a_odds) },
-                    ou: { label: m.main?.sp?.total || "0", o: toMalay(m.main?.sp?.o_odds), u: toMalay(m.main?.sp?.u_odds) },
-                    xx: { h: m.main?.sp?.h2h_home || "2.00", a: m.main?.sp?.h2h_away || "2.00", d: m.main?.sp?.h2h_draw || "3.00" }
+                    hdp: { label: oddsSource.handicap || "0", h: toMalay(oddsSource.h_odds), a: toMalay(oddsSource.a_odds) },
+                    ou: { label: oddsSource.total || "0", o: toMalay(oddsSource.o_odds), u: toMalay(oddsSource.u_odds) },
+                    xx: { h: oddsSource.h2h_home || "2.00", a: oddsSource.h2h_away || "2.00", d: oddsSource.h2h_draw || "3.00" }
                 },
                 firstHalf: {
-                    hdp: { label: m.main?.sp?.h1_handicap || "0", h: toMalay(m.main?.sp?.h1_h_odds), a: toMalay(m.main?.sp?.h1_a_odds) },
-                    ou: { label: m.main?.sp?.h1_total || "0", o: toMalay(m.main?.sp?.h1_o_odds), u: toMalay(m.main?.sp?.h1_u_odds) }
+                    hdp: { label: oddsSource.h1_handicap || "0", h: toMalay(oddsSource.h1_h_odds), a: toMalay(oddsSource.h1_a_odds) },
+                    ou: { label: oddsSource.h1_total || "0", o: toMalay(oddsSource.h1_o_odds), u: toMalay(oddsSource.h1_u_odds) }
                 }
             };
         });
+
+        console.log(`✅ Processed Matches: ${processed.length}`);
         res.json(processed);
     } catch (e) { 
-    console.error("Odds API Error:", e.message);
-    res.status(200).json([]); // 500 အစား Empty Array (200) ကို ပြန်ပို့ပေးပါ
-}
+        console.error("❌ API Error Detail:", e.response?.data || e.message);
+        res.status(200).json([]); 
+    }
 });
 
 // Auth & User routes များ ယခင်အတိုင်း ထည့်ထားပါ
