@@ -10,12 +10,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// --- CONFIG ---
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kozed:Bwargyi69@cluster0.s5oybom.mongodb.net/gl99_db";
 const TOKEN = process.env.BETS_API_TOKEN || "241806-4Tr2NNdfhQxz9X";
 const BETS_API_URL = "https://api.b365api.com/v1";
 
-mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Production DB Connected"));
+mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 DB Connected"));
 
 const User = mongoose.model('User', new mongoose.Schema({
     username: { type: String, unique: true },
@@ -24,7 +23,6 @@ const User = mongoose.model('User', new mongoose.Schema({
     history: { type: Array, default: [] } 
 }));
 
-// Malay Odds Conversion Logic
 function toMalay(decimal) {
     if (!decimal || decimal === 1 || decimal === "-") return "-"; 
     const d = parseFloat(decimal);
@@ -33,27 +31,31 @@ function toMalay(decimal) {
 
 app.get('/odds', async (req, res) => {
     try {
-        // In-play နှင့် Upcoming နှစ်ခုလုံးကို တစ်ပြိုင်နက် ဆွဲယူခြင်း
         const [inplayRes, upcomingRes] = await Promise.all([
             axios.get(`${BETS_API_URL}/bet365/inplay`, { params: { token: TOKEN, sport_id: 1 } }),
             axios.get(`${BETS_API_URL}/bet365/upcoming`, { params: { token: TOKEN, sport_id: 1 } })
         ]);
 
-        const allRawMatches = [...(inplayRes.data.results || []), ...(upcomingRes.data.results || [])];
-        const filtered = allRawMatches.filter(m => !m.league.name.toLowerCase().includes("esoccer"));
+        const inplayMatches = (inplayRes.data.results || []).map(m => ({ ...m, isLive: true }));
+        const upcomingMatches = (upcomingRes.data.results || []).map(m => ({ ...m, isLive: false }));
+        const allRawMatches = [...inplayMatches, ...upcomingMatches];
+
+        const filtered = allRawMatches.filter(m => {
+            if(!m.league || !m.league.name) return false;
+            return !m.league.name.toLowerCase().includes("esoccer");
+        });
 
         const processed = filtered.map(m => {
-            const isLive = !!m.timer;
-            // Odds Mapping Fix: main.sp သို့မဟုတ် odds.main.sp ထဲမှ ဒေတာကို ရှာယူခြင်း
+            // Odds များကို နေရာနှစ်ခုစလုံးတွင် ရှာဖွေခြင်း
             const o = m.main?.sp || m.odds?.main?.sp || {};
 
             return {
                 id: m.id,
-                league: m.league?.name || "Unknown League",
-                home: m.home?.name || "Home",
-                away: m.away?.name || "Away",
+                league: m.league.name,
+                home: m.home.name,
+                away: m.away.name,
                 time: new Date(m.time * 1000).toISOString(),
-                isLive: isLive,
+                isLive: m.isLive,
                 score: m.ss || "0-0",
                 timer: m.timer?.tm || "0",
                 fullTime: {
@@ -103,4 +105,4 @@ app.post('/user/bet', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 GL99 Live on Port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on Port ${PORT}`));

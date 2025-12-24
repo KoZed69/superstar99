@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GL99 - Professional Betting</title>
+    <title>GL99 - Professional View</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -18,7 +18,7 @@
         .data-table { width: 100%; border-collapse: collapse; border: 1px solid #999; }
         .th-std { background: #5c87b2; color: white; border: 1px solid #fff; padding: 3px; font-weight: bold; text-align: center; }
         .row-head { background: var(--league-grad); color: white; padding: 4px 8px; font-weight: bold; }
-        .odd-btn { cursor: pointer; font-weight: bold; min-width: 45px; text-align: right; border-radius: 2px; transition: all 0.2s; }
+        .odd-btn { cursor: pointer; font-weight: bold; min-width: 45px; text-align: right; border-radius: 2px; }
         .odd-btn:hover { background: #ffffcc; color: red; outline: 1px solid red; }
     </style>
 </head>
@@ -32,22 +32,23 @@
     <div class="wrapper">
         <div class="sidebar">
             <div class="flex bg-gray-300 border-b border-gray-500 font-bold text-center">
-                <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Early')">Early</div>
-                <div class="flex-1 py-1 bg-white text-red-700" id="today-tab" onclick="setTab('Today')">Today</div>
-                <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Live')">Live</div>
+                <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Early', this)">Early</div>
+                <div class="flex-1 py-1 bg-white text-red-700" onclick="setTab('Today', this)">Today</div>
+                <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Live', this)">Live</div>
             </div>
             <div class="flex-1 overflow-y-auto p-2">
-                <div class="font-bold text-blue-800 mb-1"><i class="fas fa-futbol"></i> SOCCER</div>
-                <div class="menu-link active"><span>HDP & OU</span> <span class="text-red-700">24</span></div>
+                <div class="font-bold text-blue-800 border-b pb-1 mb-1"><i class="fas fa-futbol"></i> SOCCER</div>
+                <div class="menu-link active"><span>HDP & OU</span> <span class="text-red-700" id="cnt-hdp">0</span></div>
                 <div class="menu-link"><span>Odd/Even & Total Goal</span> <span class="text-red-700">356</span></div>
                 <div class="menu-link"><span>1X2 & Double Chance</span> <span class="text-red-700">351</span></div>
                 <div class="menu-link"><span>Correct Score</span> <span class="text-red-700">268</span></div>
-                <div class="menu-link"><span>Mix Parlay</span> <span class="text-red-700">291</span></div>
+                <div class="menu-link"><span>Mix Parlay</span> <span class="text-red-700" id="cnt-parlay">0</span></div>
                 <button onclick="fetchOdds()" class="w-full mt-4 bg-blue-100 py-1 text-xs font-bold border border-blue-400">REFRESH DATA</button>
             </div>
         </div>
 
         <div class="main-view">
+            <div class="bg-orange-100 border border-orange-300 p-1 mb-2 text-[10px] font-bold text-orange-800">SINGLE BET MODE | Market Open</div>
             <table class="data-table">
                 <thead>
                     <tr>
@@ -99,18 +100,20 @@
         }
 
         async function fetchOdds() {
-            const res = await fetch(`${API_BASE}/odds`);
-            allMatches = await res.json(); renderTable();
+            try {
+                const res = await fetch(`${API_BASE}/odds`);
+                allMatches = await res.json(); renderTable();
+            } catch(e) { console.error("Fetch Error"); }
         }
 
-        function setTab(tab) {
+        function setTab(tab, el) {
             currentTab = tab;
-            document.querySelectorAll('.sidebar .flex div').forEach(el => {
-                el.classList.remove('bg-white', 'text-red-700');
-                el.classList.add('cursor-pointer');
+            document.querySelectorAll('.sidebar .flex div').forEach(div => {
+                div.classList.remove('bg-white', 'text-red-700');
+                div.classList.add('cursor-pointer');
             });
-            event.currentTarget.classList.add('bg-white', 'text-red-700');
-            event.currentTarget.classList.remove('cursor-pointer');
+            el.classList.add('bg-white', 'text-red-700');
+            el.classList.remove('cursor-pointer');
             renderTable();
         }
 
@@ -126,7 +129,13 @@
                 return true;
             });
 
-            if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-gray-500 italic">No matches available right now.</td></tr>'; return; }
+            document.getElementById('cnt-hdp').innerText = filtered.length;
+            document.getElementById('cnt-parlay').innerText = filtered.length;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-gray-500 italic">No matches available right now.</td></tr>';
+                return;
+            }
 
             let leagueGroups = {};
             filtered.forEach(m => { if(!leagueGroups[m.league]) leagueGroups[m.league]=[]; leagueGroups[m.league].push(m); });
