@@ -10,26 +10,14 @@ app.use(express.static(__dirname));
 
 // --- CONFIGURATION ---
 const MONGO_URI = "mongodb+srv://kozed:Bwargyi69@cluster0.s5oybom.mongodb.net/gl99_db?appName=Cluster0";
-const API_KEY = "e4e047268ea3da99a883e473608b3fa5"; 
+
+// 🔴 FIX 1: Corrected API Key (e4a... instead of e4e...)
+const API_KEY = "e4a047268ea3da99a883e473608b3fa5"; 
 
 // --- LEAGUE MAPPING ---
 const TARGET_LEAGUES = [39, 140, 135, 78, 61, 2, 10, 188]; 
 
-mongoose.connect(MONGO_URI)
-    .then(async () => {
-        console.log("✅ GL99 DB Connected");
-        
-        // 🔴 FIX: Check specifically for 'admin' user (Not just count)
-        const adminExists = await User.findOne({ username: "admin" });
-        if (!adminExists) {
-            const admin = new User({ username: "admin", password: "1234", balance: 1000000 });
-            await admin.save();
-            console.log("🚀 Forced Admin Created: admin / 1234");
-        } else {
-            console.log("✅ Admin account already exists.");
-        }
-    })
-    .catch(err => console.log(err));
+mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 DB Connected"));
 
 const userSchema = new mongoose.Schema({
     username: { type: String, unique: true },
@@ -43,26 +31,39 @@ const User = mongoose.model('User', userSchema);
 let memoryCache = { data: [], lastFetch: 0 };
 
 app.get('/odds', async (req, res) => {
+    // Cache 10 Minutes
     if (Date.now() - memoryCache.lastFetch < 600000 && memoryCache.data.length > 0) {
         return res.json(memoryCache.data);
     }
 
     try {
-        const season = 2025; 
+        console.log("🌍 Fetching FRESH Data from API...");
+        
+        // 🔴 FIX 2: Use Season '2024' (Current Active Season in Real World API)
+        const season = 2024; 
+        
         const requests = TARGET_LEAGUES.map(id => 
             axios.get('https://v3.football.api-sports.io/odds', {
                 headers: { 'x-apisports-key': API_KEY },
-                params: { league: id, season: season, bookmaker: 1 }
+                params: { league: id, season: season, bookmaker: 1 } 
             }).catch(e => ({ data: { response: [] } }))
         );
 
         const results = await Promise.all(requests);
         let allMatches = [];
-        results.forEach(res => { if (res.data && res.data.response) allMatches = allMatches.concat(res.data.response); });
+        results.forEach(res => {
+            if (res.data && res.data.response) {
+                allMatches = allMatches.concat(res.data.response);
+            }
+        });
+
+        console.log(`✅ API Fetched ${allMatches.length} Matches`);
 
         let processed = allMatches.map(m => {
-            const b = m.bookmakers[0];
-            const getOdd = (name) => b.bets.find(x => x.name === name);
+            const fixture = m.fixture;
+            const bookie = m.bookmakers[0];
+            const getOdd = (name) => bookie.bets.find(x => x.name === name);
+            
             let hdp = getOdd('Asian Handicap');
             let ou = getOdd('Goals Over/Under');
             let xx = getOdd('Match Winner');
@@ -71,9 +72,9 @@ app.get('/odds', async (req, res) => {
             let fh_xx = getOdd('Match Winner First Half');
 
             return {
-                id: m.fixture.id,
+                id: fixture.id,
                 league: m.league.name,
-                time: m.fixture.date,
+                time: fixture.date,
                 home: m.teams.home.name,
                 away: m.teams.away.name,
                 fulltime: {
@@ -89,14 +90,19 @@ app.get('/odds', async (req, res) => {
             };
         });
 
+        // Sort by time
         processed.sort((a,b) => new Date(a.time) - new Date(b.time));
+
         memoryCache = { data: processed, lastFetch: Date.now() };
         res.json(processed);
 
-    } catch (e) { res.json([]); }
+    } catch (e) {
+        console.error("🔥 API Error:", e.message);
+        res.json([]);
+    }
 });
 
-// AUTH & ADMIN ROUTES
+// AUTH & ADMIN ROUTES (Same as before)
 app.post('/auth/login', async (req, res) => { const { username, password } = req.body; const user = await User.findOne({ username }); if (!user || password !== user.password) return res.status(400).json({ error: "Invalid Credentials" }); res.json({ success: true, user }); });
 app.post('/auth/register', async (req, res) => { const { username, password } = req.body; const user = new User({ username, password, balance: 0 }); await user.save(); res.json({ success: true }); });
 app.post('/user/sync', async (req, res) => { const user = await User.findOne({ username: req.body.username }); res.json(user || {}); });
