@@ -1,7 +1,7 @@
 {
   "name": "gl99-betting",
   "version": "1.0.0",
-  "description": "GL99 Agent Betting System",
+  "description": "GL99 Pro Agent System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -10,7 +10,6 @@
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
     "express": "^4.18.2",
     "mongoose": "^8.0.0"
   }

@@ -3,216 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GL99 - Professional Betting</title>
+    <title>GL99 - Agent</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --bg-body: #dfe3ee; --header-grad: linear-gradient(to bottom, #3b5998 0%, #1e5396 100%); --league-grad: linear-gradient(to bottom, #a90329 0%, #6d0019 100%); }
-        body { background: var(--bg-body); font-family: Tahoma, sans-serif; font-size: 11px; overflow: hidden; }
-        .top-header { background: var(--header-grad); height: 38px; display: flex; align-items: center; color: white; border-bottom: 1px solid #000; padding: 0 10px; }
+        /* --- YBET99 REPLICA THEME --- */
+        body { background: #dfe3ee; font-family: Tahoma, sans-serif; font-size: 11px; overflow: hidden; }
+        
+        .header { background: linear-gradient(to bottom, #3b5998, #1e5396); color: white; height: 38px; display: flex; align-items: center; padding: 0 10px; }
+        .nav-btn { padding: 0 10px; height: 100%; display: flex; align-items: center; border-right: 1px solid #6fa8dc; cursor: pointer; font-weight: bold; }
+        .nav-btn:hover, .nav-btn.active { background: #2c527a; color: #ffeb3b; }
+
         .wrapper { display: flex; height: calc(100vh - 38px); }
-        .sidebar { width: 220px; background: #f2f2f2; border-right: 1px solid #999; display: flex; flex-direction: column; }
-        .main-view { flex: 1; overflow-y: auto; background: white; padding: 5px; }
-        .menu-link { display: flex; justify-content: space-between; padding: 5px 8px; cursor: pointer; border-bottom: 1px solid #ccc; font-weight: bold; }
-        .menu-link.active { background: #ffffcc; color: #a90329; border-left: 3px solid #a90329; }
-        .data-table { width: 100%; border-collapse: collapse; border: 1px solid #999; }
-        .th-std { background: #5c87b2; color: white; border: 1px solid #fff; padding: 4px; font-weight: bold; text-align: center; }
-        .row-head { background: var(--league-grad); color: white; padding: 4px 8px; font-weight: bold; }
-        .odd-btn { cursor: pointer; font-weight: bold; min-width: 45px; text-align: right; border-radius: 2px; }
-        .odd-btn:hover { background: #ffffcc; color: red; outline: 1px solid red; }
+        .sidebar { width: 210px; background: #e3e8ee; display: flex; flex-direction: column; border-right: 1px solid #999; }
+        .content { flex: 1; background: white; overflow-y: auto; padding: 2px; }
+
+        /* TABLE */
+        .odds-table { width: 100%; border-collapse: collapse; border: 1px solid #666; background: white; }
+        .th-main { background: linear-gradient(to bottom, #5c87b2, #3b5998); color: white; border: 1px solid #84a6cc; padding: 4px; text-align: center; font-weight: bold; }
+        .league-row { background: #a83626; color: white; font-weight: bold; padding: 3px 5px; border-top: 1px solid white; text-shadow: 1px 1px 0 rgba(0,0,0,0.3); }
+        .row-a { background: #fcece9; } .row-b { background: #ffffff; }
+        
+        .cell { border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 2px; vertical-align: middle; height: 22px; }
+        .odd-box { cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; padding: 0 4px; }
+        .odd-val { font-weight: bold; color: black; }
+        .odd-val.neg { color: #cc0000; }
+        .odd-box:hover { background: #ffffcc; outline: 1px solid red; }
+        .selected { background: #ffeb3b !important; border: 1px solid red; }
+
+        /* BET SLIP */
+        .slip-box { background: #e8ebf1; border: 1px solid #999; margin: 5px; display: flex; flex-direction: column; height: 300px; }
+        .slip-head { background: linear-gradient(to bottom, #d4d0c8, #e8ebf1); padding: 4px; font-weight: bold; border-bottom: 1px solid #999; color: #333; }
+        
+        /* PRINT */
+        .print-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
+        .ticket { background: white; padding: 20px; width: 300px; font-family: 'Courier New', monospace; font-size: 12px; }
     </style>
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+        const user = JSON.parse(localStorage.getItem('gl99_user'));
+        if(!user) window.location.href = 'login.html';
+    </script>
 </head>
 <body>
-    <div class="top-header">
-        <div class="font-black italic text-yellow-400 text-lg mr-5">GL99</div>
-        <div class="flex-1 text-xs font-bold items-center"><span id="user-name" class="text-yellow-400"></span> | <span id="bal">...</span></div>
-        <button onclick="logout()" class="bg-red-700 px-2 py-1 rounded text-[10px]">Exit</button>
+
+    <div class="header shrink-0">
+        <div class="font-black italic text-lg mr-6 text-yellow-400">YBET99</div>
+        <div class="nav-btn active">Home</div>
+        <div class="nav-btn">Statement</div>
+        <div class="nav-btn">Result</div>
+        <div class="flex-1"></div>
+        <div class="text-right text-[10px] leading-tight">
+            Welcome: <b>${user.username}</b><br>
+            Credit: <b id="bal" class="text-yellow-300">...</b>
+        </div>
     </div>
 
     <div class="wrapper">
         <div class="sidebar">
-            <div class="flex bg-gray-300 border-b border-gray-500 font-bold text-center">
-                <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Early', this)">Early</div>
-                <div class="flex-1 py-1 bg-white text-red-700" onclick="setTab('Today', this)">Today</div>
-                <div class="flex-1 py-1 cursor-pointer" onclick="setTab('Live', this)">Live</div>
+            <div class="bg-[#d4d0c8] p-1 font-bold text-center text-xs border-b border-gray-400">My Favorite</div>
+            
+            <div class="slip-box">
+                <div class="slip-head flex justify-between">
+                    <span>Bet List</span> <span id="slip-count" class="bg-red-600 text-white px-1 rounded text-[9px]">0</span>
+                </div>
+                <div id="slip-list" class="flex-1 overflow-y-auto bg-white p-1 text-[10px]"></div>
+                <div class="p-2 bg-[#dcdcdc] text-[10px] border-t border-gray-400">
+                    <div class="flex justify-between mb-1">
+                        <span>Stake:</span> <input id="stake" type="number" class="w-16 border px-1" onkeydown="if(event.key==='Enter') placeBet()">
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span>Win:</span> <span id="win-amt" class="font-bold text-blue-800">0</span>
+                    </div>
+                    <button onclick="placeBet()" class="w-full bg-[#4c7fb3] text-white font-bold py-1 border border-black">Process Bet</button>
+                </div>
             </div>
-            <div class="flex-1 overflow-y-auto p-2">
-                <div class="font-bold text-blue-800 border-b pb-1 mb-1">SOCCER</div>
-                <div class="menu-link active"><span>HDP & OU</span> <span id="cnt-hdp" class="text-red-700">0</span></div>
-                <div class="menu-link"><span>Odd/Even & Total Goal</span> <span class="text-red-700">356</span></div>
-                <div class="menu-link"><span>1X2 & Double Chance</span> <span class="text-red-700">351</span></div>
-                <div class="menu-link"><span>Correct Score</span> <span class="text-red-700">268</span></div>
-                <div class="menu-link"><span>Mix Parlay</span> <span id="cnt-parlay" class="text-red-700">0</span></div>
+
+            <div class="bg-[#d0def0] font-bold text-[#1e5396] p-1 mt-2">Mix Parlay</div>
+            <div class="p-2 space-y-1 text-xs">
+                <div class="cursor-pointer hover:text-red-600">HDP & OU</div>
+                <div class="cursor-pointer hover:text-red-600">Mix Parlay</div>
+                <div class="cursor-pointer hover:text-red-600">Correct Score</div>
+                <div class="cursor-pointer hover:text-red-600">1X2 & DC</div>
+                <button onclick="location.reload()" class="w-full mt-2 bg-gray-200 border text-[10px]">Refresh Data</button>
             </div>
         </div>
 
-        <div class="main-view">
-            <table class="data-table">
+        <div class="content">
+            <table class="odds-table">
                 <thead>
                     <tr>
-                        <th rowspan="2" class="th-std">Time/Event</th>
-                        <th colspan="2" class="th-std">Full Time</th>
-                        <th colspan="2" class="th-std">First Half</th>
-                        <th rowspan="2" class="th-std">1X2</th>
+                        <th class="th-main w-8" rowspan="2">Time</th>
+                        <th class="th-main w-40" rowspan="2">Event</th>
+                        <th class="th-main" colspan="4">Full Time</th>
+                        <th class="th-main" colspan="3">First Half</th>
                     </tr>
                     <tr>
-                        <th class="th-std">HDP</th><th class="th-std">O/U</th>
-                        <th class="th-std">HDP</th><th class="th-std">O/U</th>
+                        <th class="th-main w-12">HDP</th>
+                        <th class="th-main w-12">O/U</th>
+                        <th class="th-main w-8">1X2</th>
+                        <th class="th-main w-8">O/E</th>
+                        <th class="th-main w-12">HDP</th>
+                        <th class="th-main w-12">O/U</th>
+                        <th class="th-main w-8">1X2</th>
                     </tr>
                 </thead>
-                <tbody id="match-body"></tbody>
+                <tbody id="match-body"><tr><td colspan="9" class="p-10 text-center">Loading...</td></tr></tbody>
             </table>
-        </div>
-
-        <div class="sidebar" style="width: 250px; border-left: 1px solid #999;">
-            <div class="bg-blue-900 text-white font-bold p-2 text-center">BET SLIP</div>
-            <div id="slip-container" class="p-2 min-h-[100px] text-[10px]">
-                <div class="italic text-gray-500 text-center py-5">Please select an odd.</div>
-            </div>
-            <div id="slip-action" class="p-2 border-t border-gray-400 hidden">
-                <div class="flex justify-between font-bold mb-2"><span>Stake:</span><input type="number" id="stake-input" oninput="calcWin()" class="w-24 border border-blue-800 px-1 text-right" value="1000"></div>
-                <div class="flex justify-between text-red-700 font-bold mb-3"><span>Max Win:</span><span id="max-win">0</span></div>
-                <button onclick="placeBet()" class="w-full bg-red-700 text-white font-bold py-2 rounded">PLACE BET</button>
-            </div>
         </div>
     </div>
 
-<script>
-    const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-    const currentUser = JSON.parse(localStorage.getItem('gl99_user'));
-    let allMatches = [], currentTab = 'Today', slip = [];
+    <div id="print-modal" class="print-modal">
+        <div class="ticket" id="ticket-content"></div>
+        <div class="text-center mt-2">
+            <button onclick="doPrint()" class="bg-blue-600 text-white px-2">Print</button>
+            <button onclick="document.getElementById('print-modal').style.display='none'" class="bg-gray-300 px-2">Close</button>
+        </div>
+    </div>
 
-    // Critical Fix: Defined before init
-    async function syncUser() {
-        if (!currentUser) return;
-        try {
-            const r = await fetch(`${API_BASE}/user/sync`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({username: currentUser.username})
-            });
-            const d = await r.json(); 
-            const balEl = document.getElementById('bal');
-            if (balEl) balEl.innerText = (d.balance || 0).toLocaleString();
-        } catch(e) { console.error("Sync Error:", e); }
-    }
+    <script>
+        let matches = [], slip = [];
 
-    async function init() {
-        if(!currentUser) return window.location.href = 'login.html';
-        const userEl = document.getElementById('user-name');
-        if (userEl) userEl.innerText = currentUser.username;
-        await fetchOdds(); 
-        await syncUser();
-        setInterval(fetchOdds, 30000); 
-    }
-
-    async function fetchOdds() {
-        try {
+        async function init() {
+            const uRes = await fetch(`${API_BASE}/user/sync`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user.username})});
+            const uData = await uRes.json();
+            document.getElementById('bal').innerText = uData.balance.toLocaleString();
+            
             const res = await fetch(`${API_BASE}/odds`);
-            allMatches = await res.json(); 
-            renderTable();
-        } catch(e) { console.error("Fetch Error"); }
-    }
+            matches = await res.json();
+            render();
+        }
 
-    function setTab(tab, el) {
-        currentTab = tab;
-        document.querySelectorAll('.sidebar .flex div').forEach(d => {
-            d.classList.remove('bg-white', 'text-red-700');
-            d.classList.add('cursor-pointer');
-        });
-        if(el) { el.classList.add('bg-white', 'text-red-700'); el.classList.remove('cursor-pointer'); }
-        renderTable();
-    }
+        function render() {
+            const tbody = document.getElementById('match-body');
+            tbody.innerHTML = '';
+            if(matches.length === 0) return tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center">No Matches Found</td></tr>';
 
-    function renderTable() {
-    const tbody = document.getElementById('match-body'); 
-    if(!tbody) return;
-    tbody.innerHTML = '';
+            let leagues = {};
+            matches.forEach(m => { if(!leagues[m.league]) leagues[m.league]=[]; leagues[m.league].push(m); });
 
-    // Myanmar Timezone အတွက် ရက်စွဲညှိခြင်း
-    const now = new Date();
-    const todayStr = now.toDateString(); 
+            for(const [name, games] of Object.entries(leagues)) {
+                tbody.innerHTML += `<tr><td colspan="9" class="league-row">${name}</td></tr>`;
+                games.forEach((m, idx) => {
+                    const bg = idx%2===0 ? 'row-a' : 'row-b';
+                    const time = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    const ft = m.fulltime || {};
+                    const fh = m.firsthalf || {};
+                    const isSel = (id, s) => slip.find(x => x.id === id && x.sel === s) ? 'selected' : '';
+                    const clr = (v) => parseFloat(v)<0 ? 'neg' : '';
 
-    let filtered = allMatches.filter(m => {
-        const mTime = new Date(m.time);
-        const mDateStr = mTime.toDateString();
+                    tbody.innerHTML += `
+                    <tr class="${bg}">
+                        <td class="cell text-[#cc0000] text-[10px] text-center">${time}</td>
+                        <td class="cell text-left font-bold px-1">
+                            <div class="text-[#cc0000]">${m.home}</div>
+                            <div class="text-[#1e5396]">${m.away}</div>
+                        </td>
+                        <td class="cell">
+                            <div class="odd-box ${isSel(m.id,'HDP Home')}" onclick="addBet('${m.id}','${m.home}','HDP','${ft.hdp?.h}')"><span>${ft.hdp?.label||''}</span><span class="odd-val ${clr(ft.hdp?.h)}">${ft.hdp?.h||'-'}</span></div>
+                            <div class="odd-box ${isSel(m.id,'HDP Away')}" onclick="addBet('${m.id}','${m.away}','HDP','${ft.hdp?.a}')"><span></span><span class="odd-val ${clr(ft.hdp?.a)}">${ft.hdp?.a||'-'}</span></div>
+                        </td>
+                        <td class="cell">
+                            <div class="odd-box ${isSel(m.id,'Over')}" onclick="addBet('${m.id}','Over','OU','${ft.ou?.o}')"><span>o${ft.ou?.label||''}</span><span class="odd-val ${clr(ft.ou?.o)}">${ft.ou?.o||'-'}</span></div>
+                            <div class="odd-box ${isSel(m.id,'Under')}" onclick="addBet('${m.id}','Under','OU','${ft.ou?.u}')"><span>u</span><span class="odd-val ${clr(ft.ou?.u)}">${ft.ou?.u||'-'}</span></div>
+                        </td>
+                        <td class="cell text-center">
+                            <div class="odd-box justify-center ${isSel(m.id,'1')}" onclick="addBet('${m.id}','1','1X2','${ft.xx?.h}')">${ft.xx?.h||'-'}</div>
+                            <div class="odd-box justify-center ${isSel(m.id,'2')}" onclick="addBet('${m.id}','2','1X2','${ft.xx?.a}')">${ft.xx?.a||'-'}</div>
+                            <div class="odd-box justify-center ${isSel(m.id,'X')}" onclick="addBet('${m.id}','X','1X2','${ft.xx?.d}')">${ft.xx?.d||'-'}</div>
+                        </td>
+                        <td class="cell text-center text-xs">O/E</td>
+                        <td class="cell">
+                            <div class="odd-box ${isSel(m.id,'1H HDP Home')}" onclick="addBet('${m.id}','${m.home}','1H HDP','${fh.hdp?.h}')"><span>${fh.hdp?.label||''}</span><span class="odd-val ${clr(fh.hdp?.h)}">${fh.hdp?.h||'-'}</span></div>
+                            <div class="odd-box ${isSel(m.id,'1H HDP Away')}" onclick="addBet('${m.id}','${m.away}','1H HDP','${fh.hdp?.a}')"><span></span><span class="odd-val ${clr(fh.hdp?.a)}">${fh.hdp?.a||'-'}</span></div>
+                        </td>
+                        <td class="cell">
+                            <div class="odd-box ${isSel(m.id,'1H Over')}" onclick="addBet('${m.id}','Over','1H OU','${fh.ou?.o}')"><span>o${fh.ou?.label||''}</span><span class="odd-val ${clr(fh.ou?.o)}">${fh.ou?.o||'-'}</span></div>
+                            <div class="odd-box ${isSel(m.id,'1H Under')}" onclick="addBet('${m.id}','Under','1H OU','${fh.ou?.u}')"><span>u</span><span class="odd-val ${clr(fh.ou?.u)}">${fh.ou?.u||'-'}</span></div>
+                        </td>
+                        <td class="cell text-center">
+                            <div class="odd-box justify-center ${isSel(m.id,'1H 1')}" onclick="addBet('${m.id}','1','1H 1X2','${fh.xx?.h}')">${fh.xx?.h||'-'}</div>
+                            <div class="odd-box justify-center ${isSel(m.id,'1H 2')}" onclick="addBet('${m.id}','2','1H 1X2','${fh.xx?.a}')">${fh.xx?.a||'-'}</div>
+                        </td>
+                    </tr>`;
+                });
+            }
+        }
 
-        if (currentTab === 'Live') return m.isLive;
-        // Today Tab: အခုလက်ရှိရက်စွဲနဲ့ တူတဲ့ပွဲများ
-        if (currentTab === 'Today') return !m.isLive && mDateStr === todayStr;
-        // Early Tab: ဒီနေ့ထက် နောက်ကျတဲ့ရက်စွဲများ
-        if (currentTab === 'Early') return !m.isLive && mTime > now && mDateStr !== todayStr;
-        return true;
-    });
+        function addBet(id, sel, type, odds) {
+            if(!odds || odds === '-') return;
+            slip = [{ id, sel, type, odds }];
+            updateSlip(); render();
+        }
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-gray-500">No matches found in ${currentTab}.</td></tr>`;
-        document.getElementById('cnt-hdp').innerText = "0";
-        return;
-    }
+        function updateSlip() {
+            const list = document.getElementById('slip-list');
+            list.innerHTML = '';
+            document.getElementById('slip-count').innerText = slip.length;
+            slip.forEach(s => {
+                list.innerHTML += `<div class="bg-[#fcece9] border border-gray-300 p-1 mb-1 relative"><div class="text-[#a90329] font-bold text-[9px] border-b border-dashed border-gray-400 mb-1 pb-1">Soccer / ${s.type}</div><div class="text-[#1e5396] font-bold text-[9px]">${s.sel}</div><div class="text-right font-bold text-black text-[10px]">@ ${s.odds}</div></div>`;
+            });
+            let stake = document.getElementById('stake').value || 0;
+            if(slip.length) document.getElementById('win-amt').innerText = (stake * slip[0].odds).toFixed(2);
+        }
 
-    let leagueGroups = {};
-    filtered.forEach(m => { 
-        const dateKey = new Date(m.time).toLocaleDateString();
-        const groupKey = currentTab === 'Early' ? `${dateKey} - ${m.league}` : m.league;
-        if(!leagueGroups[groupKey]) leagueGroups[groupKey]=[]; 
-        leagueGroups[groupKey].push(m); 
-    });
+        async function placeBet() {
+            const stake = document.getElementById('stake').value;
+            if(!stake) return alert("Enter Stake");
+            
+            // Show Ticket
+            const s = slip[0];
+            const html = `<div style="text-align:center; font-weight:bold; border-bottom:1px dashed #000; padding-bottom:5px;">GL99 TICKET</div><div style="margin:10px 0; font-size:11px;"><div>ID: ${Math.floor(Math.random()*1000000)}</div><div>Date: ${new Date().toLocaleString()}</div></div><div style="border-bottom:1px dashed #000; margin-bottom:5px;"></div><div style="font-weight:bold;">${s.type}</div><div>${s.sel} @ ${s.odds}</div><div style="border-bottom:1px dashed #000; margin:5px 0;"></div><div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Stake:</span><span>${stake}</span></div><div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Win:</span><span>${(stake*s.odds).toFixed(2)}</span></div>`;
+            document.getElementById('ticket-content').innerHTML = html;
+            document.getElementById('print-modal').style.display = 'flex';
 
-    let htmlBuffer = ""; 
-    for(const [groupName, matches] of Object.entries(leagueGroups)) {
-        htmlBuffer += `<tr><td colspan="6" class="row-head">${groupName}</td></tr>`;
-        
-        matches.forEach(m => {
-            const timeStr = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            const statusDisp = m.isLive ? `<div class="text-red-600 font-bold">${m.timer}'</div><div class="bg-red-600 text-white px-1 rounded text-[10px]">${m.score}</div>` : `<div class="text-gray-500">${timeStr}</div>`;
+            await fetch(`${API_BASE}/user/bet`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username: user.username, stake: parseInt(stake), ticket: { matches: slip, date: new Date().toLocaleString(), type: "Single", win: (stake*s.odds).toFixed(0), status: "Running" } }) });
+            slip = []; updateSlip(); init();
+        }
 
-            // အသင်းနာမည်များတွင် ' ပါပါက Error မတက်အောင် ရှင်းထုတ်ခြင်း
-            const safeHome = m.home.replace(/'/g, "\\'");
-            const safeAway = m.away.replace(/'/g, "\\'");
+        function doPrint() {
+            const w = window.open('', '_blank');
+            w.document.write('<html><head><title>Ticket</title></head><body><pre>' + document.getElementById('ticket-content').innerText + '</pre></body></html>');
+            w.print(); w.close();
+        }
 
-            htmlBuffer += `
-            <tr class="border-b border-gray-300">
-                <td class="p-1 border-r bg-gray-50 text-center w-32">
-                    ${statusDisp}
-                    <div class="font-bold text-blue-900 leading-tight mt-1">${m.home}</div>
-                    <div class="font-bold text-blue-900 leading-tight">${m.away}</div>
-                </td>
-                <td class="p-1 border-r w-24">
-                    <div class="flex justify-between"><span>${m.fullTime.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','FT.HDP','${safeHome}','${m.fullTime.hdp.h}')">${m.fullTime.hdp.h}</span></div>
-                    <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','FT.HDP','${safeAway}','${m.fullTime.hdp.a}')">${m.fullTime.hdp.a}</span></div>
-                </td>
-                <td class="p-1 border-r w-24">
-                    <div class="flex justify-between"><span>u${m.fullTime.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','FT.OU','Over','${m.fullTime.ou.o}')">${m.fullTime.ou.o}</span></div>
-                    <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','FT.OU','Under','${m.fullTime.ou.u}')">${m.fullTime.ou.u}</span></div>
-                </td>
-                <td class="p-1 border-r w-24 bg-pink-50">
-                    <div class="flex justify-between"><span>${m.firstHalf.hdp.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','1H.HDP','${safeHome}','${m.firstHalf.hdp.h}')">${m.firstHalf.hdp.h}</span></div>
-                    <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','1H.HDP','${safeAway}','${m.firstHalf.hdp.a}')">${m.firstHalf.hdp.a}</span></div>
-                </td>
-                <td class="p-1 border-r w-24 bg-pink-50">
-                    <div class="flex justify-between"><span>u${m.firstHalf.ou.label}</span><span class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','1H.OU','Over','${m.firstHalf.ou.o}')">${m.firstHalf.ou.o}</span></div>
-                    <div class="flex justify-end mt-1"><span class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','1H.OU','Under','${m.firstHalf.ou.u}')">${m.firstHalf.ou.u}</span></div>
-                </td>
-                <td class="p-1 text-center font-bold w-16">
-                    <div class="odd-btn" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','1X2','Home','${m.fullTime.xx.h}')">${m.fullTime.xx.h}</div>
-                    <div class="odd-btn mt-1" onclick="addToSlip('${m.id}','${safeHome}','${safeAway}','1X2','Away','${m.fullTime.xx.a}')">${m.fullTime.xx.a}</div>
-                </td>
-            </tr>`;
-        });
-    }
-    tbody.innerHTML = htmlBuffer;
-    document.getElementById('cnt-hdp').innerText = filtered.length;
-}
-
-    // Slip and Betting functions remain the same as your polished index.html
-    function addToSlip(mId, h, a, mkt, sel, odds) {
-        if(odds === "-") return;
-        slip = [{ matchId: mId, home: h, away: a, market: mkt, selection: sel, odds: parseFloat(odds) }];
-        document.getElementById('slip-container').innerHTML = `<div class="bg-yellow-50 border border-yellow-400 p-2 rounded text-[10px]"><b>${sel} @${odds}</b><br>${mkt}<br>${h} vs ${a}</div>`;
-        document.getElementById('slip-action').classList.remove('hidden'); calcWin();
-    }
-    // ... calcWin and placeBet logic ...
-    init();
-</script>
+        init();
+    </script>
 </body>
 </html>

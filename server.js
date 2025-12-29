@@ -1,117 +1,130 @@
-require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kozed:Bwargyi69@cluster0.s5oybom.mongodb.net/gl99_db";
-const TOKEN = process.env.BETS_API_TOKEN || "241806-4Tr2NNdfhQxz9X";
-const BETS_API_URL = "https://api.b365api.com/v3"; // v3 ကို သုံးခြင်း
+// --- CONFIGURATION ---
+const MONGO_URI = "mongodb+srv://kozed:Bwargyi69@cluster0.s5oybom.mongodb.net/gl99_db?appName=Cluster0";
 
-mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 Perfection DB Connected"));
+// 🔴 CRITICAL: Use your API-FOOTBALL Key here (NOT The Odds API key)
+const API_KEY = "e4e047268ea3da99a883e473608b3fa5"; 
 
-const User = mongoose.model('User', new mongoose.Schema({
+// League IDs: EPL(39), LaLiga(140), SerieA(135), Bundesliga(78), Ligue1(61), UCL(2)
+const TARGET_LEAGUES = [39, 140, 135, 78, 61, 2, 10, 188]; 
+
+mongoose.connect(MONGO_URI).then(() => console.log("✅ GL99 DB Connected"));
+
+const userSchema = new mongoose.Schema({
     username: { type: String, unique: true },
     password: { type: String },
     balance: { type: Number, default: 0 },
     history: { type: Array, default: [] } 
-}));
+});
+const User = mongoose.model('User', userSchema);
 
-function toMalay(decimal) {
-    const d = parseFloat(decimal);
-    if (!d || d <= 1.0) return "-"; 
-    // Standard Malay Formula:
-    // If Decimal >= 2.0: -1 / (Decimal - 1)
-    // If Decimal < 2.0: (Decimal - 1)
-    if (d >= 2.0) {
-        return (-1 / (d - 1)).toFixed(2);
-    } else {
-        return (d - 1).toFixed(2);
-    }
-}
+// --- CACHING (Saves Quota) ---
+let memoryCache = { data: [], lastFetch: 0 };
 
 app.get('/odds', async (req, res) => {
+    // 1. Serve Cache if less than 10 mins old
+    if (Date.now() - memoryCache.lastFetch < 600000 && memoryCache.data.length > 0) {
+        console.log("⚡ Serving from Cache");
+        return res.json(memoryCache.data);
+    }
+
     try {
-        // 1. Inplay (Live) အတွက် v3 endpoint သုံးခြင်း
-        const inplayRes = await axios.get(`${BETS_API_URL}/events/inplay`, { 
-            params: { token: TOKEN, sport_id: 1 } 
-        });
+        console.log("🌍 Fetching FRESH Data from API-Football...");
         
-        // 2. Upcoming အတွက် v3 endpoint သုံးခြင်း
-        const upcomingRes = await axios.get(`${BETS_API_URL}/events/upcoming`, { 
-            params: { token: TOKEN, sport_id: 1, skip_esports: 'true' } 
+        // 🔴 FORCE SEASON 2024 
+        // Even if your PC is in 2025, the API has data for 2024 (Real Time).
+        const season = new Date().getFullYear();
+
+        
+        const requests = TARGET_LEAGUES.map(id => 
+            axios.get('https://v3.football.api-sports.io/odds', {
+                headers: { 'x-apisports-key': API_KEY },
+                params: { 
+                    league: id, 
+                    season: season, 
+                    bookmaker: 1 // Bet365
+                } 
+            }).catch(e => {
+                console.error(`Error fetching league ${id}:`, e.message);
+                return { data: { response: [] } };
+            })
+        );
+
+        const results = await Promise.all(requests);
+        let allMatches = [];
+
+        results.forEach(res => {
+            if (res.data && res.data.response) {
+                allMatches = allMatches.concat(res.data.response);
+            }
         });
 
-        const liveMatches = inplayRes.data.results || [];
-        const upcomingMatches = upcomingRes.data.results || [];
+        console.log(`✅ Total Matches Fetched: ${allMatches.length}`);
 
-        const allData = [...liveMatches.map(m => ({...m, isLiveFlag: true})), 
-                         ...upcomingMatches.map(m => ({...m, isLiveFlag: false}))];
+        let processed = allMatches.map(m => {
+            const fixture = m.fixture;
+            const bookie = m.bookmakers[0];
+            const getOdd = (name) => bookie.bets.find(x => x.name === name);
+            
+            let hdp = getOdd('Asian Handicap');
+            let ou = getOdd('Goals Over/Under');
+            let xx = getOdd('Match Winner');
 
-        // Replace the map function inside app.get('/odds') with this:
-const processed = allData.map(m => {
-    const matchDate = new Date(m.time * 1000); 
-    
-    // API v3 usually puts main market odds here:
-    const sp = m.main?.sp || m.odds?.main?.sp || {};
+            // 1st Half Markets
+            let fh_hdp = getOdd('Asian Handicap First Half');
+            let fh_ou = getOdd('Goals Over/Under First Half');
+            let fh_xx = getOdd('Match Winner First Half');
 
-    return {
-        id: m.id,
-        league: m.league.name,
-        home: m.home.name,
-        away: m.away.name,
-        time: matchDate.toISOString(),
-        isLive: m.isLiveFlag,
-        score: m.ss || "0-0",
-        timer: m.timer?.tm || "0",
-        fullTime: {
-            hdp: { label: sp.handicap || "0", h: toMalay(sp.h_odds || sp.home_odds), a: toMalay(sp.a_odds || sp.away_odds) },
-            ou: { label: sp.total || "0", o: toMalay(sp.o_odds || sp.over_odds), u: toMalay(sp.u_odds || sp.under_odds) },
-            xx: { h: sp.h2h_home || "2.00", a: sp.h2h_away || "2.00" }
-        },
-        firstHalf: {
-            hdp: { label: sp.h1_handicap || "0", h: toMalay(sp.h1_h_odds), a: toMalay(sp.h1_a_odds) },
-            ou: { label: sp.h1_total || "0", o: toMalay(sp.h1_o_odds), u: toMalay(sp.h1_u_odds) }
-        }
-    };
-});
+            return {
+                id: fixture.id,
+                league: m.league.name,
+                time: fixture.date,
+                home: m.teams.home.name,
+                away: m.teams.away.name,
+                fulltime: {
+                    hdp: hdp ? { label: hdp.values[0].value, h: hdp.values[0].odd, a: hdp.values[1].odd } : null,
+                    ou: ou ? { label: ou.values[0].value, o: ou.values[0].odd, u: ou.values[1].odd } : null,
+                    xx: xx ? { h: xx.values[0].odd, d: xx.values[1].odd, a: xx.values[2].odd } : null
+                },
+                firsthalf: {
+                    hdp: fh_hdp ? { label: fh_hdp.values[0].value, h: fh_hdp.values[0].odd, a: fh_hdp.values[1].odd } : null,
+                    ou: fh_ou ? { label: fh_ou.values[0].value, o: fh_ou.values[0].odd, u: fh_ou.values[1].odd } : null,
+                    xx: fh_xx ? { h: fh_xx.values[0].odd, d: fh_xx.values[1].odd, a: fh_xx.values[2].odd } : null
+                }
+            };
+        });
 
-        console.log(`✅ Update: ${processed.length} matches found.`);
+        // 🔴 NO DATE FILTER: Show ALL matches the API returns
+        // We only sort them so the latest ones are at the bottom or top as you prefer
+        processed.sort((a,b) => new Date(a.time) - new Date(b.time));
+
+        memoryCache = { data: processed, lastFetch: Date.now() };
         res.json(processed);
+
     } catch (e) {
-        console.error("API Error:", e.message);
-        res.status(200).json([]);
+        console.error("🔥 Global API Error:", e.message);
+        res.json([]);
     }
 });
 
-// မူလ User & Auth Routes များကို အပြည့်အစုံ ပြန်လည်ဖြည့်သွင်းပေးထားပါသည်
-app.post('/auth/login', async (req, res) => {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Invalid" });
-    res.json({ success: true, user });
-});
+// AUTH & USER ROUTES
+app.post('/auth/login', async (req, res) => { const { username, password } = req.body; const user = await User.findOne({ username }); if (!user || password !== user.password) return res.status(400).json({ error: "Invalid" }); res.json({ success: true, user }); });
+app.post('/user/sync', async (req, res) => { const user = await User.findOne({ username: req.body.username }); res.json(user || {}); });
+app.post('/user/bet', async (req, res) => { const { username, stake, ticket } = req.body; const user = await User.findOne({ username }); if(user.balance < stake) return res.status(400).json({ error: "Low Balance" }); user.balance -= stake; user.history.unshift(ticket); await user.save(); res.json({ success: true }); });
 
-app.post('/user/sync', async (req, res) => {
-    const user = await User.findOne({ username: req.body.username });
-    res.json(user || { balance: 0 });
-});
+// ADMIN ROUTES
+app.get('/admin/users', async (req, res) => { const users = await User.find({}); res.json(users); });
+app.post('/admin/balance', async (req, res) => { const { username, amount, type } = req.body; const user = await User.findOne({ username }); if(type === 'add') user.balance += amount; else user.balance -= amount; await user.save(); res.json({ success: true }); });
+app.post('/admin/settle', async (req, res) => { const { username, betIndex, result } = req.body; const user = await User.findOne({ username }); let bet = user.history[betIndex]; if(!bet) return res.json({error: "Bet not found"}); bet.status = result; if(result === 'Win') { let winAmount = parseInt(bet.win.replace(/[^0-9]/g, '')); if(!isNaN(winAmount)) user.balance += winAmount; } user.markModified('history'); await user.save(); res.json({ success: true }); });
 
-app.post('/user/bet', async (req, res) => {
-    const { username, stake, ticket } = req.body;
-    const user = await User.findOne({ username });
-    if(!user || user.balance < stake) return res.status(400).json({ error: "Low Funds" });
-    user.balance -= stake;
-    user.history.unshift(ticket);
-    await user.save();
-    res.json({ success: true });
-});
-
-const PORT = process.env.PORT || 10000; 
-app.listen(PORT, () => console.log(`🚀 Perfect GL99 Live on Port ${PORT}`));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`GL99 Running on ${PORT}`));
