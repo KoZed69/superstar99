@@ -15,16 +15,18 @@ const API_KEY = "e4e047268ea3da99a883e473608b3fa5";
 // --- LEAGUE MAPPING ---
 const TARGET_LEAGUES = [39, 140, 135, 78, 61, 2, 10, 188]; 
 
-// --- DATABASE CONNECT & AUTO ADMIN SETUP ---
 mongoose.connect(MONGO_URI)
     .then(async () => {
         console.log("✅ GL99 DB Connected");
-        // Check if Admin exists, if not create one
-        const count = await User.countDocuments();
-        if (count === 0) {
+        
+        // 🔴 FIX: Check specifically for 'admin' user (Not just count)
+        const adminExists = await User.findOne({ username: "admin" });
+        if (!adminExists) {
             const admin = new User({ username: "admin", password: "1234", balance: 1000000 });
             await admin.save();
-            console.log("🚀 Default Admin Created: admin / 1234");
+            console.log("🚀 Forced Admin Created: admin / 1234");
+        } else {
+            console.log("✅ Admin account already exists.");
         }
     })
     .catch(err => console.log(err));
@@ -46,7 +48,7 @@ app.get('/odds', async (req, res) => {
     }
 
     try {
-        const season = 2025; // Force 2025
+        const season = 2025; 
         const requests = TARGET_LEAGUES.map(id => 
             axios.get('https://v3.football.api-sports.io/odds', {
                 headers: { 'x-apisports-key': API_KEY },
