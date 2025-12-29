@@ -6,35 +6,25 @@
     <title>GL99 - Agent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* --- YBET99 REPLICA THEME --- */
         body { background: #dfe3ee; font-family: Tahoma, sans-serif; font-size: 11px; overflow: hidden; }
-        
         .header { background: linear-gradient(to bottom, #3b5998, #1e5396); color: white; height: 38px; display: flex; align-items: center; padding: 0 10px; }
         .nav-btn { padding: 0 10px; height: 100%; display: flex; align-items: center; border-right: 1px solid #6fa8dc; cursor: pointer; font-weight: bold; }
         .nav-btn:hover, .nav-btn.active { background: #2c527a; color: #ffeb3b; }
-
         .wrapper { display: flex; height: calc(100vh - 38px); }
         .sidebar { width: 210px; background: #e3e8ee; display: flex; flex-direction: column; border-right: 1px solid #999; }
         .content { flex: 1; background: white; overflow-y: auto; padding: 2px; }
-
-        /* TABLE */
         .odds-table { width: 100%; border-collapse: collapse; border: 1px solid #666; background: white; }
         .th-main { background: linear-gradient(to bottom, #5c87b2, #3b5998); color: white; border: 1px solid #84a6cc; padding: 4px; text-align: center; font-weight: bold; }
         .league-row { background: #a83626; color: white; font-weight: bold; padding: 3px 5px; border-top: 1px solid white; text-shadow: 1px 1px 0 rgba(0,0,0,0.3); }
         .row-a { background: #fcece9; } .row-b { background: #ffffff; }
-        
         .cell { border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 2px; vertical-align: middle; height: 22px; }
         .odd-box { cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; padding: 0 4px; }
         .odd-val { font-weight: bold; color: black; }
         .odd-val.neg { color: #cc0000; }
         .odd-box:hover { background: #ffffcc; outline: 1px solid red; }
         .selected { background: #ffeb3b !important; border: 1px solid red; }
-
-        /* BET SLIP */
         .slip-box { background: #e8ebf1; border: 1px solid #999; margin: 5px; display: flex; flex-direction: column; height: 300px; }
         .slip-head { background: linear-gradient(to bottom, #d4d0c8, #e8ebf1); padding: 4px; font-weight: bold; border-bottom: 1px solid #999; color: #333; }
-        
-        /* PRINT */
         .print-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
         .ticket { background: white; padding: 20px; width: 300px; font-family: 'Courier New', monospace; font-size: 12px; }
     </style>
@@ -53,7 +43,7 @@
         <div class="nav-btn">Result</div>
         <div class="flex-1"></div>
         <div class="text-right text-[10px] leading-tight">
-            Welcome: <b>${user.username}</b><br>
+            Welcome: <b id="welcome-user">...</b><br>
             Credit: <b id="bal" class="text-yellow-300">...</b>
         </div>
     </div>
@@ -61,23 +51,15 @@
     <div class="wrapper">
         <div class="sidebar">
             <div class="bg-[#d4d0c8] p-1 font-bold text-center text-xs border-b border-gray-400">My Favorite</div>
-            
             <div class="slip-box">
-                <div class="slip-head flex justify-between">
-                    <span>Bet List</span> <span id="slip-count" class="bg-red-600 text-white px-1 rounded text-[9px]">0</span>
-                </div>
+                <div class="slip-head flex justify-between"><span>Bet List</span> <span id="slip-count" class="bg-red-600 text-white px-1 rounded text-[9px]">0</span></div>
                 <div id="slip-list" class="flex-1 overflow-y-auto bg-white p-1 text-[10px]"></div>
                 <div class="p-2 bg-[#dcdcdc] text-[10px] border-t border-gray-400">
-                    <div class="flex justify-between mb-1">
-                        <span>Stake:</span> <input id="stake" type="number" class="w-16 border px-1" onkeydown="if(event.key==='Enter') placeBet()">
-                    </div>
-                    <div class="flex justify-between mb-1">
-                        <span>Win:</span> <span id="win-amt" class="font-bold text-blue-800">0</span>
-                    </div>
+                    <div class="flex justify-between mb-1"><span>Stake:</span> <input id="stake" type="number" class="w-16 border px-1" onkeydown="if(event.key==='Enter') placeBet()"></div>
+                    <div class="flex justify-between mb-1"><span>Win:</span> <span id="win-amt" class="font-bold text-blue-800">0</span></div>
                     <button onclick="placeBet()" class="w-full bg-[#4c7fb3] text-white font-bold py-1 border border-black">Process Bet</button>
                 </div>
             </div>
-
             <div class="bg-[#d0def0] font-bold text-[#1e5396] p-1 mt-2">Mix Parlay</div>
             <div class="p-2 space-y-1 text-xs">
                 <div class="cursor-pointer hover:text-red-600">HDP & OU</div>
@@ -124,6 +106,8 @@
         let matches = [], slip = [];
 
         async function init() {
+            // Update User Info
+            document.getElementById('welcome-user').innerText = user.username;
             const uRes = await fetch(`${API_BASE}/user/sync`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user.username})});
             const uData = await uRes.json();
             document.getElementById('bal').innerText = uData.balance.toLocaleString();
@@ -209,13 +193,10 @@
         async function placeBet() {
             const stake = document.getElementById('stake').value;
             if(!stake) return alert("Enter Stake");
-            
-            // Show Ticket
             const s = slip[0];
             const html = `<div style="text-align:center; font-weight:bold; border-bottom:1px dashed #000; padding-bottom:5px;">GL99 TICKET</div><div style="margin:10px 0; font-size:11px;"><div>ID: ${Math.floor(Math.random()*1000000)}</div><div>Date: ${new Date().toLocaleString()}</div></div><div style="border-bottom:1px dashed #000; margin-bottom:5px;"></div><div style="font-weight:bold;">${s.type}</div><div>${s.sel} @ ${s.odds}</div><div style="border-bottom:1px dashed #000; margin:5px 0;"></div><div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Stake:</span><span>${stake}</span></div><div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Win:</span><span>${(stake*s.odds).toFixed(2)}</span></div>`;
             document.getElementById('ticket-content').innerHTML = html;
             document.getElementById('print-modal').style.display = 'flex';
-
             await fetch(`${API_BASE}/user/bet`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username: user.username, stake: parseInt(stake), ticket: { matches: slip, date: new Date().toLocaleString(), type: "Single", win: (stake*s.odds).toFixed(0), status: "Running" } }) });
             slip = []; updateSlip(); init();
         }
