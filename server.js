@@ -12,7 +12,7 @@ app.use(express.static(__dirname));
 const MONGO_URI = "mongodb+srv://kozed:Bwargyi69@cluster0.s5oybom.mongodb.net/gl99_db?appName=Cluster0";
 
 // 🔴 FIX 1: Corrected API Key (e4a... instead of e4e...)
-const API_KEY = "e4a047268ea3da99a883e473608b3fa5"; 
+const API_KEY = "04a785d567c34cf87794aa56ebb1991a"; 
 
 // --- LEAGUE MAPPING ---
 const TARGET_LEAGUES = [39, 140, 135, 78, 61, 2, 10, 188]; 
